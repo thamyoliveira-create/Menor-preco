@@ -7,7 +7,8 @@ Reconstruído em setembro/2026 a partir da descrição do projeto original (o re
 ## O que o app faz hoje
 
 - **Aba Ofertas**: cadastro manual de cada oferta (produto, preço, link do produto, desconto, comissão normal, comissão extra, avaliação, frete grátis, cupom). O app calcula um **score de prioridade de publicação** combinando desconto + comissão + comissão extra + avaliação + frete + cupom.
-- **Triagem inteligente**: pesquisa as ofertas cadastradas por nome e categoria, calcula uma nota de pertinência de 0 a 100 e explica os sinais favoráveis e os alertas. É possível filtrar por status, categoria e nota mínima.
+- **Tela principal de ofertas**: mostra primeiro todas as ofertas cadastradas, ordenadas pela pertinência, com busca por nome e categoria, filtros por status e nota mínima.
+- **Cupom na mensagem**: quando houver um código de cupom, ele aparece no cartão e entra automaticamente na mensagem preparada para o cliente.
 - **Aprovação humana**: toda oferta começa como pendente. A mensagem de WhatsApp só pode ser preparada depois que você aprovar o produto. Ofertas rejeitadas podem guardar o motivo da decisão.
 - **Aba Lucro**: para cada oferta, informe comissão normal (%), comissão extra (%) e quantidade de vendas registradas. O app calcula:
   - ganho estimado por venda
