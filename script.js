@@ -164,7 +164,7 @@ function renderOfertas() {
 function renderTriagem() {
   const container = document.getElementById('lista-triagem');
   const termo = (document.getElementById('busca-ofertas')?.value || '').trim().toLocaleLowerCase('pt-BR');
-  const filtroStatus = document.getElementById('filtro-status')?.value || 'pendente';
+  const filtroStatus = document.getElementById('filtro-status')?.value || 'todos';
   const categoria = document.getElementById('filtro-categoria')?.value || 'todas';
   const notaMinima = Number(document.getElementById('filtro-nota')?.value) || 0;
   const filtradas = ofertas.filter((oferta) => {
@@ -189,7 +189,7 @@ function renderTriagem() {
     ].join('');
     return `<article class="oferta-item">
       <div class="topo">
-        <div><h3>${escapeHtml(oferta.nome)}</h3><div class="oferta-meta"><span>${formatarMoeda(Number(oferta.preco) || 0)}</span><span>${escapeHtml(oferta.categoria || 'outros')}</span></div></div>
+        <div><h3>${escapeHtml(oferta.nome)}</h3><div class="oferta-meta"><span>${formatarMoeda(Number(oferta.preco) || 0)}</span><span>${escapeHtml(oferta.categoria || 'outros')}</span>${oferta.codigoCupom ? `<span>🎟️ ${escapeHtml(oferta.codigoCupom)}</span>` : ''}</div></div>
         <div><span class="status-chip ${statusOferta(oferta)}">${statusOferta(oferta)}</span> <span class="score-badge ${analise.faixa}">${analise.nota}/100</span></div>
       </div>
       <div class="analise-box"><p class="analise-titulo">${analise.recomendacao}</p><ul class="sinais">${sinais}</ul></div>
@@ -197,7 +197,7 @@ function renderTriagem() {
       <div class="oferta-acoes">
         <button class="btn-approve" data-curadoria="aprovada" data-id="${oferta.id}">Aprovar para envio</button>
         <button class="btn-reject" data-curadoria="rejeitada" data-id="${oferta.id}">Rejeitar</button>
-        ${statusOferta(oferta) === 'aprovada' ? `<button class="btn-primary" data-acao="gerar" data-id="${oferta.id}">Preparar mensagem</button>` : ''}
+        ${statusOferta(oferta) === 'aprovada' ? `<button class="btn-primary" data-acao="gerar" data-id="${oferta.id}">Enviar esta oferta</button>` : ''}
       </div>
     </article>`;
   }).join('');
@@ -313,6 +313,7 @@ function montarTexto(oferta, canal) {
     `De olho nessa: ${formatarMoeda(Number(oferta.preco) || 0)}${oferta.desconto > 0 ? ` (${oferta.desconto}% OFF)` : ''}`,
   ];
   if (oferta.cupom === 'sim') linhas.push('🎟️ Tem cupom disponível na página do produto');
+  if (oferta.codigoCupom) linhas.push(`🏷️ Use o cupom: *${oferta.codigoCupom}*`);
   if (oferta.frete === 'sim') linhas.push('🚚 Frete grátis');
   linhas.push('', montarLink(oferta, canal), '', '_Link de afiliada — posso ganhar uma comissão sem custo extra pra você._');
   return linhas.join('\n');
@@ -393,6 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
       avaliacao: Number(document.getElementById('of-avaliacao').value) || 0,
       qtdAvaliacoes: Number(document.getElementById('of-qtd-avaliacoes').value) || 0,
       cupom: document.getElementById('of-cupom').value,
+      codigoCupom: document.getElementById('of-codigo-cupom').value.trim().toUpperCase(),
       frete: document.getElementById('of-frete').value,
       vendas: 0,
       statusCuradoria: 'pendente',
