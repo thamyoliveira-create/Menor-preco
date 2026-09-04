@@ -7,6 +7,8 @@ Reconstruído em setembro/2026 a partir da descrição do projeto original (o re
 ## O que o app faz hoje
 
 - **Aba Ofertas**: cadastro manual de cada oferta (produto, preço, link do produto, desconto, comissão normal, comissão extra, avaliação, frete grátis, cupom). O app calcula um **score de prioridade de publicação** combinando desconto + comissão + comissão extra + avaliação + frete + cupom.
+- **Triagem inteligente**: pesquisa as ofertas cadastradas por nome e categoria, calcula uma nota de pertinência de 0 a 100 e explica os sinais favoráveis e os alertas. É possível filtrar por status, categoria e nota mínima.
+- **Aprovação humana**: toda oferta começa como pendente. A mensagem de WhatsApp só pode ser preparada depois que você aprovar o produto. Ofertas rejeitadas podem guardar o motivo da decisão.
 - **Aba Lucro**: para cada oferta, informe comissão normal (%), comissão extra (%) e quantidade de vendas registradas. O app calcula:
   - ganho estimado por venda
   - ganho acumulado
@@ -45,7 +47,7 @@ menor-preco/
 
 ## Próximos passos sugeridos
 
-1. Usar o app manualmente por um tempo (aba Ofertas + Lucro) para validar o fluxo de publicação.
+1. Usar o app manualmente por um tempo (Ofertas + Triagem + Lucro) para ajustar os critérios ao perfil dos seus grupos.
 2. Montar um backend simples (Node.js) que use `server/shopee-client.js` para buscar produtos e comissões automaticamente.
 3. Adicionar Sub_id por canal nos links de afiliado para descobrir qual grupo/rede converte melhor.
 4. Avaliar a integração oficial de afiliados da Shopee no Instagram para contas profissionais elegíveis.
