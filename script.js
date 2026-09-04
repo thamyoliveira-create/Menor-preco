@@ -56,6 +56,44 @@ function calcularScore(oferta) {
   ) / 10;
 }
 
+// Nota de pertinência (0–100), separada da prioridade financeira.
+// Ela favorece uma promoção defensável para o público: desconto real,
+// boa reputação e benefícios de compra pesam mais que a comissão.
+function analisarPertinencia(oferta) {
+  const desconto = Math.min(Number(oferta.desconto) || 0, 60);
+  const avaliacao = Number(oferta.avaliacao) || 0;
+  const qtdAvaliacoes = Number(oferta.qtdAvaliacoes) || 0;
+  const comissao = (Number(oferta.comissao) || 0) + (Number(oferta.comissaoExtra) || 0);
+  let nota = desconto * 0.55;
+  nota += Math.max(0, avaliacao - 3) * 18;
+  nota += Math.min(Math.log10(qtdAvaliacoes + 1) * 7, 18);
+  nota += oferta.frete === 'sim' ? 8 : 0;
+  nota += oferta.cupom === 'sim' ? 7 : 0;
+  nota += Math.min(comissao * 0.25, 5);
+
+  const positivos = [];
+  const alertas = [];
+  if (desconto >= 20) positivos.push(`Desconto atrativo de ${desconto}%`);
+  else if (desconto < 10) alertas.push('Desconto abaixo de 10%');
+  if (avaliacao >= 4.6) positivos.push(`Boa avaliação: ${avaliacao.toFixed(1)}`);
+  else if (avaliacao < 4.2) alertas.push('Avaliação abaixo de 4,2');
+  if (qtdAvaliacoes >= 100) positivos.push(`${qtdAvaliacoes} avaliações dão mais confiança`);
+  else if (qtdAvaliacoes < 20) alertas.push('Poucas avaliações para validar o produto');
+  if (oferta.frete === 'sim') positivos.push('Frete grátis reduz objeção de compra');
+  else alertas.push('Sem frete grátis informado');
+  if (oferta.cupom === 'sim') positivos.push('Cupom disponível');
+  if (!oferta.link || !/^https:\/\//i.test(oferta.link)) alertas.push('Link do produto precisa ser conferido');
+
+  nota = Math.max(0, Math.min(100, Math.round(nota)));
+  const faixa = nota >= 75 ? 'alta' : nota >= 50 ? 'media' : 'baixa';
+  const recomendacao = nota >= 75 ? 'Boa candidata para o grupo' : nota >= 50 ? 'Confira os alertas antes de aprovar' : 'Pouco pertinente com os dados atuais';
+  return { nota, faixa, recomendacao, positivos, alertas };
+}
+
+function statusOferta(oferta) {
+  return oferta.statusCuradoria || 'pendente';
+}
+
 // ---------- Cálculo de lucro ----------
 function calcularLucro(oferta) {
   const comissaoTotal = (Number(oferta.comissao) || 0) + (Number(oferta.comissaoExtra) || 0);
@@ -88,6 +126,7 @@ function renderOfertas() {
     div.innerHTML = `
       <div class="topo">
         <h3>${escapeHtml(oferta.nome)}</h3>
+        <span class="status-chip ${statusOferta(oferta)}">${statusOferta(oferta)}</span>
         <span class="score-badge">Prioridade ${score}</span>
       </div>
       <div class="oferta-meta">
@@ -99,7 +138,7 @@ function renderOfertas() {
         ${oferta.cupom === 'sim' ? '<span>Com cupom</span>' : ''}
       </div>
       <div class="oferta-acoes">
-        <button class="btn-primary" data-acao="gerar" data-id="${oferta.id}">Gerar mensagem</button>
+        ${statusOferta(oferta) === 'aprovada' ? `<button class="btn-primary" data-acao="gerar" data-id="${oferta.id}">Gerar mensagem</button>` : `<button class="btn-secondary" data-acao="revisar" data-id="${oferta.id}">Revisar pertinência</button>`}
         <button class="btn-secondary" data-acao="remover" data-id="${oferta.id}">Remover</button>
       </div>
     `;
@@ -112,6 +151,72 @@ function renderOfertas() {
   container.querySelectorAll('[data-acao="remover"]').forEach((btn) => {
     btn.addEventListener('click', () => removerOferta(btn.dataset.id));
   });
+  container.querySelectorAll('[data-acao="revisar"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      ativarTab('triagem');
+      document.getElementById('busca-ofertas').value = ofertas.find((o) => o.id === btn.dataset.id)?.nome || '';
+      document.getElementById('filtro-status').value = 'todos';
+      renderTriagem();
+    });
+  });
+}
+
+function renderTriagem() {
+  const container = document.getElementById('lista-triagem');
+  const termo = (document.getElementById('busca-ofertas')?.value || '').trim().toLocaleLowerCase('pt-BR');
+  const filtroStatus = document.getElementById('filtro-status')?.value || 'pendente';
+  const categoria = document.getElementById('filtro-categoria')?.value || 'todas';
+  const notaMinima = Number(document.getElementById('filtro-nota')?.value) || 0;
+  const filtradas = ofertas.filter((oferta) => {
+    const analise = analisarPertinencia(oferta);
+    const texto = `${oferta.nome} ${oferta.categoria || ''}`.toLocaleLowerCase('pt-BR');
+    return (!termo || texto.includes(termo)) &&
+      (filtroStatus === 'todos' || statusOferta(oferta) === filtroStatus) &&
+      (categoria === 'todas' || (oferta.categoria || 'outros') === categoria) &&
+      analise.nota >= notaMinima;
+  }).sort((a, b) => analisarPertinencia(b).nota - analisarPertinencia(a).nota);
+
+  document.getElementById('triagem-contador').textContent = `${filtradas.length} encontrada${filtradas.length === 1 ? '' : 's'}`;
+  if (!filtradas.length) {
+    container.innerHTML = '<p class="vazio">Nenhuma oferta corresponde aos filtros. Cadastre produtos na aba Ofertas ou altere a busca.</p>';
+    return;
+  }
+  container.innerHTML = filtradas.map((oferta) => {
+    const analise = analisarPertinencia(oferta);
+    const sinais = [
+      ...analise.positivos.map((s) => `<li class="positivo">${escapeHtml(s)}</li>`),
+      ...analise.alertas.map((s) => `<li class="alerta">${escapeHtml(s)}</li>`),
+    ].join('');
+    return `<article class="oferta-item">
+      <div class="topo">
+        <div><h3>${escapeHtml(oferta.nome)}</h3><div class="oferta-meta"><span>${formatarMoeda(Number(oferta.preco) || 0)}</span><span>${escapeHtml(oferta.categoria || 'outros')}</span></div></div>
+        <div><span class="status-chip ${statusOferta(oferta)}">${statusOferta(oferta)}</span> <span class="score-badge ${analise.faixa}">${analise.nota}/100</span></div>
+      </div>
+      <div class="analise-box"><p class="analise-titulo">${analise.recomendacao}</p><ul class="sinais">${sinais}</ul></div>
+      ${oferta.motivoRejeicao ? `<p class="hint"><strong>Motivo da rejeição:</strong> ${escapeHtml(oferta.motivoRejeicao)}</p>` : ''}
+      <div class="oferta-acoes">
+        <button class="btn-approve" data-curadoria="aprovada" data-id="${oferta.id}">Aprovar para envio</button>
+        <button class="btn-reject" data-curadoria="rejeitada" data-id="${oferta.id}">Rejeitar</button>
+        ${statusOferta(oferta) === 'aprovada' ? `<button class="btn-primary" data-acao="gerar" data-id="${oferta.id}">Preparar mensagem</button>` : ''}
+      </div>
+    </article>`;
+  }).join('');
+
+  container.querySelectorAll('[data-curadoria]').forEach((btn) => btn.addEventListener('click', () => atualizarCuradoria(btn.dataset.id, btn.dataset.curadoria)));
+  container.querySelectorAll('[data-acao="gerar"]').forEach((btn) => btn.addEventListener('click', () => abrirModalMensagem(btn.dataset.id)));
+}
+
+function atualizarCuradoria(id, status) {
+  const oferta = ofertas.find((o) => o.id === id);
+  if (!oferta) return;
+  let motivo = '';
+  if (status === 'rejeitada') motivo = window.prompt('Motivo da rejeição (opcional):', oferta.motivoRejeicao || '') || '';
+  oferta.statusCuradoria = status;
+  oferta.motivoRejeicao = status === 'rejeitada' ? motivo.trim() : '';
+  oferta.revisadaEm = new Date().toISOString();
+  salvarOfertas(ofertas);
+  renderTriagem();
+  renderOfertas();
 }
 
 // ---------- Render: Lucro ----------
@@ -265,6 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderOfertas();
   renderLucro();
   renderCanais();
+  renderTriagem();
 
   const appIdSalvo = localStorage.getItem(APPID_KEY);
   if (appIdSalvo) document.getElementById('cfg-appid').value = appIdSalvo;
@@ -278,20 +384,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const nova = {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       nome: document.getElementById('of-nome').value.trim(),
+      categoria: document.getElementById('of-categoria').value,
       preco: document.getElementById('of-preco').value,
       link: document.getElementById('of-link').value.trim(),
       desconto: Number(document.getElementById('of-desconto').value) || 0,
       comissao: Number(document.getElementById('of-comissao').value) || 0,
       comissaoExtra: Number(document.getElementById('of-comissao-extra').value) || 0,
       avaliacao: Number(document.getElementById('of-avaliacao').value) || 0,
+      qtdAvaliacoes: Number(document.getElementById('of-qtd-avaliacoes').value) || 0,
       cupom: document.getElementById('of-cupom').value,
       frete: document.getElementById('of-frete').value,
       vendas: 0,
+      statusCuradoria: 'pendente',
     };
     ofertas.push(nova);
     salvarOfertas(ofertas);
     renderOfertas();
     renderLucro();
+    renderTriagem();
     e.target.reset();
   });
 
@@ -316,6 +426,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('modal-fechar').addEventListener('click', fecharModal);
+  ['busca-ofertas', 'filtro-status', 'filtro-categoria', 'filtro-nota'].forEach((id) => {
+    document.getElementById(id).addEventListener(id === 'busca-ofertas' ? 'input' : 'change', renderTriagem);
+  });
   document.getElementById('modal-copiar').addEventListener('click', async () => {
     const texto = document.getElementById('modal-texto').value;
     try {
