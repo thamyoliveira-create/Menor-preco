@@ -14,6 +14,7 @@
 
   <nav class="tabs">
     <button class="tab-btn active" data-tab="ofertas">Ofertas</button>
+    <button class="tab-btn" data-tab="triagem">Triagem inteligente</button>
     <button class="tab-btn" data-tab="lucro">Lucro</button>
     <button class="tab-btn" data-tab="config">Configurações</button>
   </nav>
@@ -26,6 +27,16 @@
         <div class="grid">
           <label>Produto
             <input type="text" id="of-nome" required placeholder="Ex: Fone de ouvido bluetooth" />
+          </label>
+          <label>Categoria
+            <select id="of-categoria">
+              <option value="casa">Casa e cozinha</option>
+              <option value="beleza">Beleza e cuidados</option>
+              <option value="eletronicos">Eletrônicos</option>
+              <option value="moda">Moda</option>
+              <option value="infantil">Infantil</option>
+              <option value="outros">Outros</option>
+            </select>
           </label>
           <label>Preço (R$)
             <input type="number" id="of-preco" step="0.01" min="0" required />
@@ -45,6 +56,9 @@
           <label>Avaliação (0 a 5)
             <input type="number" id="of-avaliacao" min="0" max="5" step="0.1" value="0" />
           </label>
+          <label>Quantidade de avaliações
+            <input type="number" id="of-qtd-avaliacoes" min="0" step="1" value="0" />
+          </label>
           <label>Cupom disponível?
             <select id="of-cupom">
               <option value="nao">Não</option>
@@ -62,6 +76,53 @@
       </form>
 
       <div id="lista-ofertas" class="lista-ofertas"></div>
+    </section>
+
+    <!-- ABA TRIAGEM -->
+    <section id="tab-triagem" class="tab-panel">
+      <div class="card">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Curadoria antes do envio</p>
+            <h2>Procurar e avaliar ofertas</h2>
+          </div>
+          <span id="triagem-contador" class="contador"></span>
+        </div>
+        <p class="hint">A análise usa preço, desconto, reputação, benefícios e comissão. A decisão final é sempre sua.</p>
+        <div class="filtros-triagem">
+          <label class="campo-busca">Buscar produto
+            <input type="search" id="busca-ofertas" placeholder="Ex: air fryer, mochila, hidratante" />
+          </label>
+          <label>Status
+            <select id="filtro-status">
+              <option value="pendente">Pendentes</option>
+              <option value="todos">Todos</option>
+              <option value="aprovada">Aprovadas</option>
+              <option value="rejeitada">Rejeitadas</option>
+            </select>
+          </label>
+          <label>Categoria
+            <select id="filtro-categoria">
+              <option value="todas">Todas</option>
+              <option value="casa">Casa e cozinha</option>
+              <option value="beleza">Beleza e cuidados</option>
+              <option value="eletronicos">Eletrônicos</option>
+              <option value="moda">Moda</option>
+              <option value="infantil">Infantil</option>
+              <option value="outros">Outros</option>
+            </select>
+          </label>
+          <label>Nota mínima
+            <select id="filtro-nota">
+              <option value="0">Qualquer nota</option>
+              <option value="50">50 ou mais</option>
+              <option value="70">70 ou mais</option>
+              <option value="85">85 ou mais</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div id="lista-triagem" class="lista-ofertas"></div>
     </section>
 
     <!-- ABA LUCRO -->
