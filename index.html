@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PreçoMenor</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>PreçoMenor</h1>
+    <p class="subtitle">Organize ofertas, calcule o lucro e dispare no WhatsApp</p>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="ofertas">Ofertas</button>
+    <button class="tab-btn" data-tab="lucro">Lucro</button>
+    <button class="tab-btn" data-tab="config">Configurações</button>
+  </nav>
+
+  <main>
+    <!-- ABA OFERTAS -->
+    <section id="tab-ofertas" class="tab-panel active">
+      <form id="form-oferta" class="card">
+        <h2>Nova oferta</h2>
+        <div class="grid">
+          <label>Produto
+            <input type="text" id="of-nome" required placeholder="Ex: Fone de ouvido bluetooth" />
+          </label>
+          <label>Preço (R$)
+            <input type="number" id="of-preco" step="0.01" min="0" required />
+          </label>
+          <label>Link do produto (Shopee)
+            <input type="url" id="of-link" required placeholder="https://shopee.com.br/..." />
+          </label>
+          <label>Desconto (%)
+            <input type="number" id="of-desconto" min="0" max="100" value="0" />
+          </label>
+          <label>Comissão normal (%)
+            <input type="number" id="of-comissao" min="0" max="100" step="0.1" value="0" />
+          </label>
+          <label>Comissão extra (%)
+            <input type="number" id="of-comissao-extra" min="0" max="100" step="0.1" value="0" />
+          </label>
+          <label>Avaliação (0 a 5)
+            <input type="number" id="of-avaliacao" min="0" max="5" step="0.1" value="0" />
+          </label>
+          <label>Cupom disponível?
+            <select id="of-cupom">
+              <option value="nao">Não</option>
+              <option value="sim">Sim</option>
+            </select>
+          </label>
+          <label>Frete grátis?
+            <select id="of-frete">
+              <option value="nao">Não</option>
+              <option value="sim">Sim</option>
+            </select>
+          </label>
+        </div>
+        <button type="submit" class="btn-primary">Adicionar oferta</button>
+      </form>
+
+      <div id="lista-ofertas" class="lista-ofertas"></div>
+    </section>
+
+    <!-- ABA LUCRO -->
+    <section id="tab-lucro" class="tab-panel">
+      <div class="card">
+        <h2>Painel de Lucro</h2>
+        <p class="hint">
+          Enquanto a chamada automática à API não está conectada, informe a comissão
+          exatamente como aparece no seu painel de afiliada e registre as vendas manualmente.
+        </p>
+      </div>
+      <div id="lista-lucro" class="lista-ofertas"></div>
+    </section>
+
+    <!-- ABA CONFIGURAÇÕES -->
+    <section id="tab-config" class="tab-panel">
+      <div class="card">
+        <h2>Conexão com a Shopee (Open API)</h2>
+        <p class="hint">
+          Guardamos apenas o <strong>AppID</strong> aqui no navegador, só para referência.
+          A <strong>Senha</strong> nunca deve ser digitada aqui nem salva no código —
+          ela fica exclusivamente no backend (arquivo <code>.env</code>, fora do Git).
+          Veja <code>README.md</code> e <code>server/shopee-client.js</code>.
+        </p>
+        <label>AppID
+          <input type="text" id="cfg-appid" placeholder="Ex: 18358581254" />
+        </label>
+        <button id="salvar-appid" class="btn-secondary">Salvar AppID</button>
+        <p id="status-api" class="status"></p>
+      </div>
+
+      <div class="card">
+        <h2>Canais de publicação (Sub_id)</h2>
+        <p class="hint">Cada canal recebe um Sub_id próprio no link, para você descobrir depois onde vende mais.</p>
+        <div id="lista-canais"></div>
+        <form id="form-canal" class="inline-form">
+          <input type="text" id="novo-canal" placeholder="Ex: grupo_ofertas_1" required />
+          <button type="submit" class="btn-secondary">Adicionar canal</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal de mensagem gerada -->
+  <div id="modal-mensagem" class="modal hidden">
+    <div class="modal-content card">
+      <h2>Mensagem pronta</h2>
+      <label>Canal de publicação
+        <select id="modal-canal"></select>
+      </label>
+      <textarea id="modal-texto" rows="8"></textarea>
+      <div class="modal-actions">
+        <button id="modal-copiar" class="btn-secondary">Copiar texto</button>
+        <button id="modal-whatsapp" class="btn-primary">Abrir no WhatsApp</button>
+        <button id="modal-fechar" class="btn-link">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
