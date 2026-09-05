@@ -1,7 +1,9 @@
 const crypto = require('node:crypto');
 
-const QUERY = `query SearchOffers($keyword: String, $sortType: Int, $page: Int, $limit: Int) {
-  productOfferV2(keyword: $keyword, sortType: $sortType, page: $page, limit: $limit) {
+function searchQuery(shopId = '') {
+  const shopFilter = /^\d+$/.test(String(shopId)) ? `shopId: ${shopId},` : '';
+  return `query SearchOffers($keyword: String, $sortType: Int, $page: Int, $limit: Int) {
+  productOfferV2(keyword: $keyword, ${shopFilter} sortType: $sortType, page: $page, limit: $limit) {
     nodes {
       itemId
       productName
@@ -30,6 +32,13 @@ const QUERY = `query SearchOffers($keyword: String, $sortType: Int, $page: Int, 
       periodStartTime
       periodEndTime
     }
+  }
+}`;
+}
+
+const SHOP_QUERY = `query FindShop($keyword: String) {
+  shopOfferV2(keyword: $keyword, sortType: 1, page: 1, limit: 10) {
+    nodes { shopId shopName shopType ratingStar offerLink }
   }
 }`;
 
@@ -104,6 +113,46 @@ async function shopOrigin(productLink) {
   }
 }
 
+async function callShopee(endpoint, appId, secret, query, variables) {
+  const payload = JSON.stringify({ query, variables });
+  const timestamp = Math.floor(Date.now() / 1000);
+  const signature = crypto.createHash('sha256').update(`${appId}${timestamp}${payload}${secret}`, 'utf8').digest('hex');
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `SHA256 Credential=${appId},Timestamp=${timestamp},Signature=${signature}`,
+    },
+    body: payload,
+  });
+  const data = await response.json();
+  if (!response.ok || data.errors?.length) throw new Error(data.errors?.[0]?.message || `Erro ${response.status} ao consultar a Shopee.`);
+  return data.data || {};
+}
+
+async function resolveShop(store, endpoint, appId, secret) {
+  const productShopId = shopIdFromLink(store);
+  if (productShopId) return { id: productShopId, name: '' };
+
+  if (/^https?:\/\//i.test(store)) {
+    const url = new URL(store);
+    const username = url.pathname.split('/').filter(Boolean)[0];
+    if (username) {
+      const response = await fetch(`https://shopee.com.br/api/v4/shop/get_shop_detail?username=${encodeURIComponent(username)}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(4000),
+      });
+      const shop = (await response.json())?.data;
+      if (shop?.shopid) return { id: String(shop.shopid), name: shop.name || username };
+    }
+  }
+
+  const data = await callShopee(endpoint, appId, secret, SHOP_QUERY, { keyword: store });
+  const shops = data.shopOfferV2?.nodes || [];
+  const normalized = store.toLocaleLowerCase('pt-BR');
+  const shop = shops.find((item) => String(item.shopName || '').toLocaleLowerCase('pt-BR') === normalized) || shops[0];
+  return shop?.shopId ? { id: String(shop.shopId), name: shop.shopName || store } : null;
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido.' });
   const appId = process.env.SHOPEE_APP_ID;
@@ -115,29 +164,16 @@ module.exports = async function handler(req, res) {
   }
 
   const keyword = String(req.query.keyword || '').trim().slice(0, 100);
+  const store = String(req.query.store || '').trim().slice(0, 200);
   const allowedSorts = new Set([1, 2, 4, 5]);
   const sortType = allowedSorts.has(Number(req.query.sortType)) ? Number(req.query.sortType) : 1;
-  if (keyword.length < 2) return res.status(400).json({ error: 'Informe um termo de busca.' });
-
-  const payload = JSON.stringify({ query: QUERY, variables: { keyword, sortType, page: 1, limit: 30 } });
-  const timestamp = Math.floor(Date.now() / 1000);
-  const signature = crypto.createHash('sha256').update(`${appId}${timestamp}${payload}${secret}`, 'utf8').digest('hex');
+  if (keyword.length < 2 && store.length < 2) return res.status(400).json({ error: 'Informe um produto ou uma loja.' });
 
   try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `SHA256 Credential=${appId},Timestamp=${timestamp},Signature=${signature}`,
-      },
-      body: payload,
-    });
-    const data = await response.json();
-    if (!response.ok || data.errors?.length) {
-      const message = data.errors?.[0]?.message || `Erro ${response.status} ao consultar a Shopee.`;
-      return res.status(502).json({ error: message });
-    }
-    const nodes = data.data?.productOfferV2?.nodes || [];
+    const resolvedStore = store ? await resolveShop(store, endpoint, appId, secret) : null;
+    if (store && !resolvedStore) return res.status(404).json({ error: 'Não encontrei essa loja. Confira o nome ou cole o link completo da loja.' });
+    const data = await callShopee(endpoint, appId, secret, searchQuery(resolvedStore?.id), { keyword: keyword || null, sortType, page: 1, limit: 30 });
+    const nodes = data.productOfferV2?.nodes || [];
     const offers = await Promise.all(nodes.map(async (item) => {
       const price = number(item.priceMin || item.priceMax);
       const discountPercent = normalizePercent(item.priceDiscountRate);
@@ -146,7 +182,7 @@ module.exports = async function handler(req, res) {
       return {
         itemId: String(item.itemId),
         name: item.productName,
-        category: inferCategory(keyword),
+        category: inferCategory(keyword || store),
         productLink: item.productLink,
         offerLink: item.offerLink,
         imageUrl: item.imageUrl,
@@ -164,7 +200,7 @@ module.exports = async function handler(req, res) {
     }));
     offers.sort((a, b) => b.relevanceScore - a.relevanceScore);
     const now = Math.floor(Date.now() / 1000);
-    const campaigns = (data.data?.campaigns?.nodes || [])
+    const campaigns = (data.campaigns?.nodes || [])
       .filter((campaign) => {
         const end = number(campaign.periodEndTime);
         const start = number(campaign.periodStartTime);
@@ -181,8 +217,8 @@ module.exports = async function handler(req, res) {
         endsAt: number(campaign.periodEndTime) > now + (86400 * 730) ? 0 : number(campaign.periodEndTime),
       }));
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    return res.status(200).json({ offers, campaigns });
-  } catch {
-    return res.status(502).json({ error: 'A Shopee não respondeu. Tente novamente em alguns instantes.' });
+    return res.status(200).json({ offers, campaigns, store: resolvedStore });
+  } catch (error) {
+    return res.status(502).json({ error: error.message || 'A Shopee não respondeu. Tente novamente em alguns instantes.' });
   }
 };
