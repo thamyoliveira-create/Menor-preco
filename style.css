@@ -76,6 +76,8 @@ main { max-width: 900px; margin: 0 auto; padding: 20px 16px 60px; }
 .filtros-triagem { display: grid; grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(130px, 1fr)); gap: 10px; margin-top: 16px; }
 .busca-remota { align-items: end; background: #fff7f2; border: 1px solid #ffd9ca; border-radius: 10px; display: grid; gap: 10px; grid-template-columns: minmax(260px, 2fr) minmax(150px, 1fr) auto; margin-top: 16px; padding: 14px; }
 .busca-remota .btn-primary { min-height: 39px; white-space: nowrap; }
+.busca-loja { align-items: end; background: white; border: 1px solid var(--borda); border-radius: 10px; display: grid; gap: 10px; grid-template-columns: minmax(260px, 1fr) auto; margin-top: 10px; padding: 12px 14px; }
+.busca-loja .btn-secondary { min-height: 39px; white-space: nowrap; }
 .status-busca { color: #555; font-size: .84rem; margin: 8px 2px 0; min-height: 1.2em; }
 .status-busca.erro { color: var(--vermelho); }
 .status-busca.sucesso { color: var(--verde); }
@@ -286,6 +288,7 @@ input, select, textarea {
   .tab-btn { padding: 12px 14px; white-space: nowrap; }
   .filtros-triagem { grid-template-columns: 1fr 1fr; }
   .busca-remota { grid-template-columns: 1fr; }
+  .busca-loja { grid-template-columns: 1fr; }
   .campo-busca { grid-column: 1 / -1; }
   .sinais { grid-template-columns: 1fr; }
   .oferta-imagem { flex-basis: 84px; height: 84px; width: 84px; }
