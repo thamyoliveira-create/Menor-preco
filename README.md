@@ -10,6 +10,7 @@ Reconstruído em setembro/2026 a partir da descrição do projeto original (o re
 - **Tela principal de ofertas**: mostra primeiro todas as ofertas cadastradas, ordenadas pela pertinência, com busca por nome e categoria, filtros por status e nota mínima.
 - **Cupom na mensagem**: quando houver um código de cupom, ele aparece no cartão e entra automaticamente na mensagem preparada para o cliente.
 - **Busca na Shopee**: pesquisa produtos pela Affiliate Open API, importa até 30 resultados, calcula a pertinência e usa o link de oferta retornado pela própria API.
+- **Identificação da loja**: mostra o vendedor em cada cartão e inclui seu nome na mensagem preparada.
 - **Aprovação humana**: toda oferta começa como pendente. A mensagem de WhatsApp só pode ser preparada depois que você aprovar o produto. Ofertas rejeitadas podem guardar o motivo da decisão.
 - **Aba Lucro**: para cada oferta, informe comissão normal (%), comissão extra (%) e quantidade de vendas registradas. O app calcula:
   - ganho estimado por venda
