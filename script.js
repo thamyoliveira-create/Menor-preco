@@ -9,6 +9,7 @@ const APPID_KEY = 'precomenor_appid_v1';
 const HISTORICO_KEY = 'precomenor_historico_v1';
 const ALERTAS_KEY = 'precomenor_alertas_v1';
 const AUTOMACAO_KEY = 'precomenor_automacao_v1';
+const FILA_KEY = 'precomenor_fila_v1';
 
 // ---------- Estado ----------
 
@@ -165,6 +166,8 @@ let campanhas = [];
 let alertas = carregarJson(ALERTAS_KEY, []);
 let automacaoTimer = null;
 let idsBuscaAtual = [];
+let fila = carregarJson(FILA_KEY, []);
+let filaTimer = null;
 
 function salvarAlertas() {
   localStorage.setItem(ALERTAS_KEY, JSON.stringify(alertas));
@@ -440,7 +443,7 @@ function renderTriagem() {
       <div class="oferta-acoes">
         <button class="btn-approve" data-curadoria="aprovada" data-id="${oferta.id}">Aprovar para envio</button>
         <button class="btn-reject" data-curadoria="rejeitada" data-id="${oferta.id}">Rejeitar</button>
-        ${statusOferta(oferta) === 'aprovada' ? `<button class="btn-primary" data-acao="gerar" data-id="${oferta.id}">Enviar esta oferta</button>` : ''}
+        ${statusOferta(oferta) === 'aprovada' ? `<button class="btn-approve" data-acao="agendar" data-id="${oferta.id}">Agendar envio</button><button class="btn-primary" data-acao="gerar" data-id="${oferta.id}">Enviar agora</button>` : ''}
       </div>
       </div>
     </article>`;
@@ -448,6 +451,7 @@ function renderTriagem() {
 
   container.querySelectorAll('[data-curadoria]').forEach((btn) => btn.addEventListener('click', () => atualizarCuradoria(btn.dataset.id, btn.dataset.curadoria)));
   container.querySelectorAll('[data-acao="gerar"]').forEach((btn) => btn.addEventListener('click', () => abrirModalMensagem(btn.dataset.id)));
+  container.querySelectorAll('[data-acao="agendar"]').forEach((btn) => btn.addEventListener('click', () => abrirModalMensagem(btn.dataset.id, true)));
 }
 
 function atualizarCuradoria(id, status) {
@@ -461,6 +465,85 @@ function atualizarCuradoria(id, status) {
   salvarOfertas(ofertas);
   renderTriagem();
   renderOfertas();
+}
+
+// ---------- Fila de publicações ----------
+function salvarFila() {
+  localStorage.setItem(FILA_KEY, JSON.stringify(fila));
+}
+
+function situacaoFila(item) {
+  if (item.status === 'enviada') return 'enviada';
+  return new Date(item.agendadaPara).getTime() <= Date.now() ? 'pronta' : 'agendada';
+}
+
+function formatarAgendamento(valor) {
+  return new Date(valor).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function renderFila() {
+  const container = document.getElementById('lista-fila');
+  const resumo = document.getElementById('fila-resumo');
+  if (!container || !resumo) return;
+  const contagem = fila.reduce((acc, item) => {
+    const status = situacaoFila(item);
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+  resumo.innerHTML = `<span>${contagem.agendada || 0} agendadas</span><span>${contagem.pronta || 0} prontas</span><span>${contagem.enviada || 0} enviadas</span>`;
+  if (!fila.length) {
+    container.innerHTML = '<p class="vazio">Sua fila está vazia. Aprove uma oferta e use “Agendar envio”.</p>';
+    return;
+  }
+  const ordenada = [...fila].sort((a, b) => new Date(a.agendadaPara) - new Date(b.agendadaPara));
+  container.innerHTML = ordenada.map((item) => {
+    const status = situacaoFila(item);
+    return `<article class="fila-item ${status}">
+      <div class="fila-horario"><span>${status === 'pronta' ? 'Hora de enviar' : status === 'enviada' ? 'Enviada' : 'Agendada'}</span><strong>${formatarAgendamento(item.agendadaPara)}</strong></div>
+      <div class="fila-conteudo"><h3>${escapeHtml(item.nome)}</h3><p>${escapeHtml(item.canal)} · ${formatarMoeda(Number(item.preco) || 0)}</p></div>
+      <div class="oferta-acoes">
+        ${status !== 'enviada' ? `<button class="btn-primary" data-fila-abrir="${item.id}">Abrir WhatsApp</button><button class="btn-secondary" data-fila-enviada="${item.id}">Marcar enviada</button>` : ''}
+        <button class="btn-link" data-fila-remover="${item.id}">Remover</button>
+      </div>
+    </article>`;
+  }).join('');
+  container.querySelectorAll('[data-fila-abrir]').forEach((botao) => botao.addEventListener('click', () => {
+    const item = fila.find((registro) => registro.id === botao.dataset.filaAbrir);
+    if (item) window.open(`https://wa.me/?text=${encodeURIComponent(item.texto)}`, '_blank');
+  }));
+  container.querySelectorAll('[data-fila-enviada]').forEach((botao) => botao.addEventListener('click', () => {
+    const item = fila.find((registro) => registro.id === botao.dataset.filaEnviada);
+    if (!item) return;
+    item.status = 'enviada';
+    item.enviadaEm = new Date().toISOString();
+    salvarFila();
+    renderFila();
+  }));
+  container.querySelectorAll('[data-fila-remover]').forEach((botao) => botao.addEventListener('click', () => {
+    fila = fila.filter((registro) => registro.id !== botao.dataset.filaRemover);
+    salvarFila();
+    renderFila();
+  }));
+}
+
+function verificarFila() {
+  let alterada = false;
+  fila.forEach((item) => {
+    if (situacaoFila(item) !== 'pronta' || item.avisadaEm) return;
+    item.avisadaEm = new Date().toISOString();
+    alterada = true;
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('PreçoMenor: publicação pronta', { body: `${item.nome} · ${item.canal}` });
+    }
+  });
+  if (alterada) salvarFila();
+  renderFila();
+}
+
+function configurarFila() {
+  if (filaTimer) clearInterval(filaTimer);
+  verificarFila();
+  filaTimer = setInterval(verificarFila, 30000);
 }
 
 // ---------- Render: Lucro ----------
@@ -566,7 +649,7 @@ function montarTexto(oferta, canal) {
   return linhas.join('\n');
 }
 
-function abrirModalMensagem(id) {
+function abrirModalMensagem(id, paraAgendar = false) {
   ofertaAtualId = id;
   const oferta = ofertas.find((o) => o.id === id);
   if (!oferta) return;
@@ -576,6 +659,12 @@ function abrirModalMensagem(id) {
 
   const textarea = document.getElementById('modal-texto');
   textarea.value = montarTexto(oferta, selectCanal.value);
+
+  const padrao = new Date(Date.now() + 60 * 60 * 1000);
+  const local = new Date(padrao.getTime() - padrao.getTimezoneOffset() * 60000).toISOString();
+  document.getElementById('modal-data').value = local.slice(0, 10);
+  document.getElementById('modal-hora').value = local.slice(11, 16);
+  document.getElementById('modal-agendar').classList.toggle('destaque-agendar', paraAgendar);
 
   selectCanal.onchange = () => {
     textarea.value = montarTexto(oferta, selectCanal.value);
@@ -621,6 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderTriagem();
   renderAlertas();
   configurarAutomacao();
+  configurarFila();
   document.getElementById('intervalo-automacao').value = localStorage.getItem(AUTOMACAO_KEY) || '0';
 
   const appIdSalvo = localStorage.getItem(APPID_KEY);
@@ -733,6 +823,42 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('status-busca-shopee').textContent = 'Tela limpa. Faça uma nova busca para começar.';
     renderCampanhas();
     renderTriagem();
+  });
+  document.getElementById('modal-agendar').addEventListener('click', async () => {
+    const oferta = ofertas.find((item) => item.id === ofertaAtualId);
+    const data = document.getElementById('modal-data').value;
+    const hora = document.getElementById('modal-hora').value;
+    const canal = document.getElementById('modal-canal').value;
+    const agendadaPara = new Date(`${data}T${hora}`);
+    if (!oferta || !data || !hora || Number.isNaN(agendadaPara.getTime())) {
+      alert('Escolha uma data e um horário válidos.');
+      return;
+    }
+    if (agendadaPara.getTime() <= Date.now()) {
+      alert('O horário precisa estar no futuro.');
+      return;
+    }
+    const duplicada = fila.some((item) => item.status !== 'enviada' && item.ofertaId === oferta.id && item.canal === canal && item.agendadaPara === agendadaPara.toISOString());
+    if (duplicada) {
+      alert('Esta oferta já está agendada para esse grupo e horário.');
+      return;
+    }
+    fila.push({
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      ofertaId: oferta.id,
+      nome: oferta.nome,
+      preco: Number(oferta.preco) || 0,
+      canal,
+      texto: document.getElementById('modal-texto').value,
+      agendadaPara: agendadaPara.toISOString(),
+      status: 'agendada',
+      criadaEm: new Date().toISOString(),
+    });
+    salvarFila();
+    renderFila();
+    if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission();
+    fecharModal();
+    ativarTab('fila');
   });
   document.getElementById('modal-copiar').addEventListener('click', async () => {
     const texto = document.getElementById('modal-texto').value;
