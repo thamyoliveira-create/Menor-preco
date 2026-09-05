@@ -65,6 +65,12 @@ async function buscarOfertasShopee(porLoja = false) {
   }
 
   botao.disabled = true;
+  document.getElementById('busca-ofertas').value = '';
+  document.getElementById('filtro-status').value = 'todos';
+  document.getElementById('filtro-categoria').value = 'todas';
+  document.getElementById('filtro-nota').value = '0';
+  idsBuscaAtual = [];
+  renderTriagem();
   status.className = 'status-busca';
   status.textContent = 'Procurando ofertas e comparando os resultados…';
   try {
@@ -79,6 +85,7 @@ async function buscarOfertasShopee(porLoja = false) {
     campanhas = Array.isArray(dados.campaigns) ? dados.campaigns : [];
     renderCampanhas();
     const categoriaForcada = document.getElementById('busca-shopee').dataset.categoria || '';
+    const idsEncontrados = [];
     dados.offers.forEach((item) => {
       const existente = ofertas.find((o) => o.source === 'shopee' && String(o.sourceId) === String(item.itemId));
       const oferta = {
@@ -108,8 +115,10 @@ async function buscarOfertasShopee(porLoja = false) {
       };
       if (existente) Object.assign(existente, oferta);
       else { ofertas.push(oferta); novas += 1; }
+      idsEncontrados.push(oferta.id);
       registrarHistorico(oferta);
     });
+    idsBuscaAtual = idsEncontrados;
     salvarOfertas(ofertas);
     document.getElementById('busca-ofertas').value = porLoja ? '' : termo;
     document.getElementById('filtro-status').value = 'todos';
@@ -149,6 +158,7 @@ let canais = carregarCanais();
 let campanhas = [];
 let alertas = carregarJson(ALERTAS_KEY, []);
 let automacaoTimer = null;
+let idsBuscaAtual = null;
 
 function salvarAlertas() {
   localStorage.setItem(ALERTAS_KEY, JSON.stringify(alertas));
@@ -358,7 +368,8 @@ function renderTriagem() {
   const filtradas = ofertas.filter((oferta) => {
     const analise = analisarPertinencia(oferta);
     const texto = `${oferta.nome} ${oferta.categoria || ''}`.toLocaleLowerCase('pt-BR');
-    return (!termo || texto.includes(termo)) &&
+    return (idsBuscaAtual === null || idsBuscaAtual.includes(oferta.id)) &&
+      (!termo || texto.includes(termo)) &&
       (filtroStatus === 'todos' || statusOferta(oferta) === filtroStatus) &&
       (categoria === 'todas' || (oferta.categoria || 'outros') === categoria) &&
       analise.nota >= notaMinima;
