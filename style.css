@@ -83,6 +83,15 @@ main { max-width: 900px; margin: 0 auto; padding: 20px 16px 60px; }
 .grupos-rapidos span { color: #666; font-size: .78rem; font-weight: 650; }
 .grupos-rapidos button { background: white; border: 1px solid var(--borda); border-radius: 999px; color: #555; cursor: pointer; font-size: .78rem; padding: 6px 10px; }
 .grupos-rapidos button:hover { border-color: var(--laranja); color: var(--laranja); }
+.hidden { display: none !important; }
+.campanhas-box { border-top: 1px solid var(--borda); margin-top: 14px; padding-top: 14px; }
+.campanhas-box h3 { font-size: .98rem; margin: 0; }
+.lista-campanhas { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 10px; }
+.campanha-item { align-items: center; background: #fffaf6; border: 1px solid #ffe0d2; border-radius: 8px; display: flex; gap: 10px; padding: 9px; }
+.campanha-item img { border-radius: 6px; height: 54px; object-fit: cover; width: 54px; }
+.campanha-item strong { display: block; font-size: .78rem; line-height: 1.25; }
+.campanha-item p { color: #6b6b6b; font-size: .7rem; margin: 3px 0; }
+.campanha-item a { color: var(--laranja); font-size: .72rem; font-weight: 700; }
 
 .grid {
   display: grid;
@@ -276,4 +285,5 @@ input, select, textarea {
   .campo-busca { grid-column: 1 / -1; }
   .sinais { grid-template-columns: 1fr; }
   .oferta-imagem { flex-basis: 84px; height: 84px; width: 84px; }
+  .lista-campanhas { grid-template-columns: 1fr; }
 }
