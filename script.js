@@ -54,6 +54,7 @@ async function buscarOfertasShopee() {
         sourceId: String(item.itemId),
         nome: item.name,
         loja: item.shopName || 'Loja não informada',
+        tipoLoja: item.shopBadge || { code: 'regular', label: 'Loja comum' },
         categoria: item.category || 'outros',
         imagem: item.imageUrl || '',
         preco: item.price,
@@ -260,7 +261,7 @@ function renderTriagem() {
       ${oferta.imagem ? `<img class="oferta-imagem" src="${escapeHtml(oferta.imagem)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ''}
       <div class="oferta-conteudo">
       <div class="topo">
-        <div><h3>${escapeHtml(oferta.nome)}</h3><p class="nome-loja">🏪 ${escapeHtml(oferta.loja || 'Loja não informada')}</p><div class="oferta-meta"><span>${formatarMoeda(Number(oferta.preco) || 0)}</span><span>${escapeHtml(oferta.categoria || 'outros')}</span>${oferta.codigoCupom ? `<span>🎟️ ${escapeHtml(oferta.codigoCupom)}</span>` : ''}</div></div>
+        <div><h3>${escapeHtml(oferta.nome)}</h3><p class="nome-loja">🏪 ${escapeHtml(oferta.loja || 'Loja não informada')} ${oferta.tipoLoja ? `<span class="loja-badge ${escapeHtml(oferta.tipoLoja.code)}">${escapeHtml(oferta.tipoLoja.label)}</span>` : ''}</p><div class="oferta-meta"><span>${formatarMoeda(Number(oferta.preco) || 0)}</span><span>${escapeHtml(oferta.categoria || 'outros')}</span>${oferta.codigoCupom ? `<span>🎟️ ${escapeHtml(oferta.codigoCupom)}</span>` : ''}</div></div>
         <div><span class="status-chip ${statusOferta(oferta)}">${statusOferta(oferta)}</span> <span class="score-badge ${analise.faixa}">${analise.nota}/100</span></div>
       </div>
       <div class="analise-box"><p class="analise-titulo">${analise.recomendacao}</p><ul class="sinais">${sinais}</ul></div>
@@ -382,6 +383,7 @@ function montarTexto(oferta, canal) {
   const linhas = [
     `🔥 ${oferta.nome}`,
     oferta.loja ? `🏪 Vendido por: ${oferta.loja}` : '',
+    oferta.tipoLoja?.label ? `✅ ${oferta.tipoLoja.label}` : '',
     '',
     `De olho nessa: ${formatarMoeda(Number(oferta.preco) || 0)}${oferta.desconto > 0 ? ` (${oferta.desconto}% OFF)` : ''}`,
   ];
@@ -459,6 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       nome: document.getElementById('of-nome').value.trim(),
       loja: document.getElementById('of-loja').value.trim(),
+      tipoLoja: null,
       categoria: document.getElementById('of-categoria').value,
       preco: document.getElementById('of-preco').value,
       link: document.getElementById('of-link').value.trim(),
