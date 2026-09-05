@@ -46,6 +46,7 @@ async function buscarOfertasShopee() {
     if (!resposta.ok) throw new Error(dados.error || 'Não foi possível consultar a Shopee.');
 
     let novas = 0;
+    const categoriaForcada = document.getElementById('busca-shopee').dataset.categoria || '';
     dados.offers.forEach((item) => {
       const existente = ofertas.find((o) => o.source === 'shopee' && String(o.sourceId) === String(item.itemId));
       const oferta = {
@@ -55,7 +56,7 @@ async function buscarOfertasShopee() {
         nome: item.name,
         loja: item.shopName || 'Loja não informada',
         tipoLoja: item.shopBadge || { code: 'regular', label: 'Loja comum' },
-        categoria: item.category || 'outros',
+        categoria: categoriaForcada || item.category || 'outros',
         imagem: item.imageUrl || '',
         preco: item.price,
         precoAnterior: item.previousPrice || 0,
@@ -87,6 +88,7 @@ async function buscarOfertasShopee() {
     status.className = 'status-busca erro';
     status.textContent = erro.message;
   } finally {
+    delete document.getElementById('busca-shopee').dataset.categoria;
     botao.disabled = false;
   }
 }
@@ -511,6 +513,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('buscar-shopee').addEventListener('click', buscarOfertasShopee);
   document.getElementById('busca-shopee').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') buscarOfertasShopee();
+  });
+  document.querySelectorAll('[data-busca-rapida]').forEach((botao) => {
+    botao.addEventListener('click', () => {
+      const campo = document.getElementById('busca-shopee');
+      campo.value = botao.dataset.buscaRapida;
+      campo.dataset.categoria = botao.dataset.categoria;
+      buscarOfertasShopee();
+    });
   });
   document.getElementById('modal-copiar').addEventListener('click', async () => {
     const texto = document.getElementById('modal-texto').value;
