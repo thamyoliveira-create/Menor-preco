@@ -254,6 +254,19 @@ function calcularScore(oferta) {
   ) / 10;
 }
 
+function grupoRecomendado(oferta) {
+  const categoria = oferta.categoria || 'outros';
+  const nome = String(oferta.nome || '').toLocaleLowerCase('pt-BR');
+  if (/skincare|s[eé]rum|hidratante|protetor solar/.test(nome)) return 'Skincare e beleza';
+  if (categoria === 'beleza') return 'Beleza e cosméticos';
+  if (categoria === 'infantil') return 'Infantil e mães';
+  if (categoria === 'moda') return 'Moda feminina';
+  if (categoria === 'casa') return 'Casa e cozinha';
+  if (categoria === 'eletronicos') return 'Eletrônicos e tecnologia';
+  if (/escolar|mochila|caderno|estojo|l[aá]pis/.test(nome)) return 'Itens escolares';
+  return 'Ofertas gerais';
+}
+
 // Nota de pertinência (0–100), separada da prioridade financeira.
 // Ela favorece uma promoção defensável para o público: desconto real,
 // boa reputação e benefícios de compra pesam mais que a comissão.
@@ -262,12 +275,15 @@ function analisarPertinencia(oferta) {
   const avaliacao = Number(oferta.avaliacao) || 0;
   const qtdAvaliacoes = Number(oferta.qtdAvaliacoes) || 0;
   const comissao = (Number(oferta.comissao) || 0) + (Number(oferta.comissaoExtra) || 0);
+  const historico = resumoHistorico(oferta);
+  const preco = Number(oferta.preco) || 0;
   let nota = desconto * 0.55;
   nota += Math.max(0, avaliacao - 3) * 18;
   nota += Math.min(Math.log10(qtdAvaliacoes + 1) * 7, 18);
   nota += oferta.frete === 'sim' ? 8 : 0;
   nota += oferta.cupom === 'sim' ? 7 : 0;
   nota += Math.min(comissao * 0.25, 5);
+  nota += Math.min((Number(oferta.vendas) || 0) * 2, 8);
 
   const positivos = [];
   const alertas = [];
@@ -280,12 +296,16 @@ function analisarPertinencia(oferta) {
   if (oferta.frete === 'sim') positivos.push('Frete grátis reduz objeção de compra');
   else alertas.push('Sem frete grátis informado');
   if (oferta.cupom === 'sim') positivos.push('Cupom disponível');
+  if (historico?.registros > 1 && preco <= historico.menor) positivos.push('Está no menor preço registrado');
+  if (historico?.registros > 1 && preco > historico.menor * 1.08) alertas.push(`Preço atual está ${Math.round(((preco / historico.menor) - 1) * 100)}% acima do menor registrado`);
   if (!oferta.link || !/^https:\/\//i.test(oferta.link)) alertas.push('Link do produto precisa ser conferido');
 
   nota = Math.max(0, Math.min(100, Math.round(nota)));
   const faixa = nota >= 75 ? 'alta' : nota >= 50 ? 'media' : 'baixa';
   const recomendacao = nota >= 75 ? 'Boa candidata para o grupo' : nota >= 50 ? 'Confira os alertas antes de aprovar' : 'Pouco pertinente com os dados atuais';
-  return { nota, faixa, recomendacao, positivos, alertas };
+  const chanceVenda = Math.max(5, Math.min(95, Math.round(nota * 0.9 + Math.min(Math.log10(qtdAvaliacoes + 1) * 3, 8))));
+  const ganhoPorVenda = preco * (comissao / 100);
+  return { nota, faixa, recomendacao, positivos, alertas, chanceVenda, ganhoPorVenda, grupo: grupoRecomendado(oferta) };
 }
 
 function statusOferta(oferta) {
@@ -394,7 +414,12 @@ function renderTriagem() {
         <div><h3>${escapeHtml(oferta.nome)}</h3><p class="nome-loja">🏪 ${escapeHtml(oferta.loja || 'Loja não informada')} ${oferta.tipoLoja ? `<span class="loja-badge ${escapeHtml(oferta.tipoLoja.code)}">${escapeHtml(oferta.tipoLoja.label)}</span>` : ''} ${oferta.origemLoja ? `<span class="origem-badge ${escapeHtml(oferta.origemLoja.code)}">${escapeHtml(oferta.origemLoja.label)}</span>` : ''}</p><div class="oferta-meta"><span>${formatarMoeda(Number(oferta.preco) || 0)}</span><span>${escapeHtml(oferta.categoria || 'outros')}</span>${historico ? `<span>📉 Menor registrado: ${formatarMoeda(historico.menor)}</span>` : ''}${oferta.codigoCupom ? `<span>🎟️ ${escapeHtml(oferta.codigoCupom)}</span>` : ''}</div></div>
         <div><span class="status-chip ${statusOferta(oferta)}">${statusOferta(oferta)}</span> <span class="score-badge ${analise.faixa}">${analise.nota}/100</span></div>
       </div>
-      <div class="analise-box"><p class="analise-titulo">${analise.recomendacao}</p><ul class="sinais">${sinais}</ul></div>
+      <div class="ia-selecao">
+        <div><span>Chance estimada</span><strong>${analise.chanceVenda}%</strong></div>
+        <div><span>Ganho por venda</span><strong>${formatarMoeda(analise.ganhoPorVenda)}</strong></div>
+        <div><span>Melhor grupo</span><strong>${escapeHtml(analise.grupo)}</strong></div>
+      </div>
+      <div class="analise-box"><p class="analise-titulo">IA: ${analise.recomendacao}</p><ul class="sinais">${sinais}</ul></div>
       ${oferta.motivoRejeicao ? `<p class="hint"><strong>Motivo da rejeição:</strong> ${escapeHtml(oferta.motivoRejeicao)}</p>` : ''}
       <div class="oferta-acoes">
         <button class="btn-approve" data-curadoria="aprovada" data-id="${oferta.id}">Aprovar para envio</button>
