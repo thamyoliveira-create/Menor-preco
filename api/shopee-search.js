@@ -19,6 +19,18 @@ const QUERY = `query SearchOffers($keyword: String, $sortType: Int, $page: Int, 
       productCatIds
     }
   }
+  campaigns: shopeeOfferV2(sortType: 1, page: 1, limit: 30) {
+    nodes {
+      commissionRate
+      imageUrl
+      offerLink
+      originalLink
+      offerName
+      offerType
+      periodStartTime
+      periodEndTime
+    }
+  }
 }`;
 
 function number(value) {
@@ -144,8 +156,24 @@ module.exports = async function handler(req, res) {
       };
     }));
     offers.sort((a, b) => b.relevanceScore - a.relevanceScore);
+    const now = Math.floor(Date.now() / 1000);
+    const campaigns = (data.data?.campaigns?.nodes || [])
+      .filter((campaign) => {
+        const end = number(campaign.periodEndTime);
+        return (!end || end >= now) && /cupom|desconto|\boff\b|frete|loja oficial/i.test(campaign.offerName || '');
+      })
+      .slice(0, 8)
+      .map((campaign, index) => ({
+        id: `${campaign.offerType || 0}-${campaign.periodEndTime || 0}-${index}`,
+        name: campaign.offerName || 'Campanha Shopee',
+        imageUrl: campaign.imageUrl || '',
+        link: campaign.offerLink || campaign.originalLink || '',
+        commissionRate: normalizePercent(campaign.commissionRate),
+        startsAt: number(campaign.periodStartTime),
+        endsAt: number(campaign.periodEndTime),
+      }));
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    return res.status(200).json({ offers });
+    return res.status(200).json({ offers, campaigns });
   } catch {
     return res.status(502).json({ error: 'A Shopee não respondeu. Tente novamente em alguns instantes.' });
   }
