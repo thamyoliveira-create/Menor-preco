@@ -6,6 +6,9 @@
 const STORAGE_KEY = 'precomenor_ofertas_v1';
 const CANAIS_KEY = 'precomenor_canais_v1';
 const APPID_KEY = 'precomenor_appid_v1';
+const HISTORICO_KEY = 'precomenor_historico_v1';
+const ALERTAS_KEY = 'precomenor_alertas_v1';
+const AUTOMACAO_KEY = 'precomenor_automacao_v1';
 
 // ---------- Estado ----------
 
@@ -19,6 +22,28 @@ function carregarOfertas() {
 
 function salvarOfertas(ofertas) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(ofertas));
+}
+
+function carregarJson(chave, padrao) {
+  try { return JSON.parse(localStorage.getItem(chave)) || padrao; } catch { return padrao; }
+}
+
+function registrarHistorico(oferta) {
+  const historico = carregarJson(HISTORICO_KEY, {});
+  const chave = String(oferta.sourceId || oferta.id);
+  const registros = Array.isArray(historico[chave]) ? historico[chave] : [];
+  const ultimo = registros.at(-1);
+  const preco = Number(oferta.preco) || 0;
+  if (!ultimo || Number(ultimo.preco) !== preco) registros.push({ preco, em: new Date().toISOString() });
+  historico[chave] = registros.slice(-30);
+  localStorage.setItem(HISTORICO_KEY, JSON.stringify(historico));
+}
+
+function resumoHistorico(oferta) {
+  const registros = carregarJson(HISTORICO_KEY, {})[String(oferta.sourceId || oferta.id)] || [];
+  if (!registros.length) return null;
+  const precos = registros.map((r) => Number(r.preco)).filter((p) => p > 0);
+  return { menor: Math.min(...precos), maior: Math.max(...precos), registros: precos.length };
 }
 
 function normalizarTaxa(valor) {
@@ -78,6 +103,7 @@ async function buscarOfertasShopee() {
       };
       if (existente) Object.assign(existente, oferta);
       else { ofertas.push(oferta); novas += 1; }
+      registrarHistorico(oferta);
     });
     salvarOfertas(ofertas);
     document.getElementById('busca-ofertas').value = termo;
@@ -85,6 +111,7 @@ async function buscarOfertasShopee() {
     renderOfertas();
     renderLucro();
     renderTriagem();
+    verificarAlertas(dados.offers);
     status.className = 'status-busca sucesso';
     status.textContent = `${dados.offers.length} ofertas analisadas; ${novas} adicionadas à sua seleção.`;
   } catch (erro) {
@@ -114,6 +141,63 @@ function salvarCanais(canais) {
 let ofertas = carregarOfertas();
 let canais = carregarCanais();
 let campanhas = [];
+let alertas = carregarJson(ALERTAS_KEY, []);
+let automacaoTimer = null;
+
+function salvarAlertas() {
+  localStorage.setItem(ALERTAS_KEY, JSON.stringify(alertas));
+}
+
+function verificarAlertas(resultados) {
+  const agora = new Date().toISOString();
+  alertas.forEach((alerta) => {
+    if (!alerta.ativo) return;
+    const termo = alerta.termo.toLocaleLowerCase('pt-BR');
+    const encontrados = resultados.filter((item) => item.name.toLocaleLowerCase('pt-BR').includes(termo) && (!alerta.precoMax || Number(item.price) <= Number(alerta.precoMax)));
+    alerta.ultimaVerificacao = agora;
+    alerta.encontradas = encontrados.length;
+    if (encontrados.length && 'Notification' in window && Notification.permission === 'granted') {
+      new Notification(`PreçoMenor: ${encontrados.length} oferta(s)`, { body: `${alerta.termo} a partir de ${formatarMoeda(Math.min(...encontrados.map((item) => Number(item.price))))}` });
+    }
+  });
+  salvarAlertas();
+  renderAlertas();
+}
+
+function renderAlertas() {
+  const container = document.getElementById('lista-alertas');
+  if (!container) return;
+  if (!alertas.length) {
+    container.innerHTML = '<p class="vazio">Nenhum alerta criado.</p>';
+    return;
+  }
+  container.innerHTML = alertas.map((alerta) => `<article class="alerta-item">
+    <div><strong>${escapeHtml(alerta.termo)}</strong><p>${alerta.precoMax ? `Até ${formatarMoeda(Number(alerta.precoMax))}` : 'Qualquer preço'} · ${alerta.encontradas || 0} encontrada(s)</p></div>
+    <div class="oferta-acoes"><button class="btn-secondary" data-alerta-buscar="${alerta.id}">Buscar agora</button><button class="btn-link" data-alerta-remover="${alerta.id}">Remover</button></div>
+  </article>`).join('');
+  container.querySelectorAll('[data-alerta-buscar]').forEach((botao) => botao.addEventListener('click', () => {
+    const alerta = alertas.find((item) => item.id === botao.dataset.alertaBuscar);
+    document.getElementById('busca-shopee').value = alerta.termo;
+    ativarTab('triagem');
+    buscarOfertasShopee();
+  }));
+  container.querySelectorAll('[data-alerta-remover]').forEach((botao) => botao.addEventListener('click', () => {
+    alertas = alertas.filter((item) => item.id !== botao.dataset.alertaRemover);
+    salvarAlertas(); renderAlertas();
+  }));
+}
+
+function configurarAutomacao() {
+  if (automacaoTimer) clearInterval(automacaoTimer);
+  const minutos = Number(localStorage.getItem(AUTOMACAO_KEY)) || 0;
+  if (!minutos) return;
+  automacaoTimer = setInterval(() => {
+    const proximo = alertas.find((alerta) => alerta.ativo);
+    if (!proximo || document.hidden) return;
+    document.getElementById('busca-shopee').value = proximo.termo;
+    buscarOfertasShopee();
+  }, minutos * 60 * 1000);
+}
 
 function formatarDataCampanha(timestamp) {
   if (!timestamp) return '';
@@ -281,6 +365,7 @@ function renderTriagem() {
   }
   container.innerHTML = filtradas.map((oferta) => {
     const analise = analisarPertinencia(oferta);
+    const historico = resumoHistorico(oferta);
     const sinais = [
       ...analise.positivos.map((s) => `<li class="positivo">${escapeHtml(s)}</li>`),
       ...analise.alertas.map((s) => `<li class="alerta">${escapeHtml(s)}</li>`),
@@ -289,7 +374,7 @@ function renderTriagem() {
       ${oferta.imagem ? `<img class="oferta-imagem" src="${escapeHtml(oferta.imagem)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ''}
       <div class="oferta-conteudo">
       <div class="topo">
-        <div><h3>${escapeHtml(oferta.nome)}</h3><p class="nome-loja">🏪 ${escapeHtml(oferta.loja || 'Loja não informada')} ${oferta.tipoLoja ? `<span class="loja-badge ${escapeHtml(oferta.tipoLoja.code)}">${escapeHtml(oferta.tipoLoja.label)}</span>` : ''} ${oferta.origemLoja ? `<span class="origem-badge ${escapeHtml(oferta.origemLoja.code)}">${escapeHtml(oferta.origemLoja.label)}</span>` : ''}</p><div class="oferta-meta"><span>${formatarMoeda(Number(oferta.preco) || 0)}</span><span>${escapeHtml(oferta.categoria || 'outros')}</span>${oferta.codigoCupom ? `<span>🎟️ ${escapeHtml(oferta.codigoCupom)}</span>` : ''}</div></div>
+        <div><h3>${escapeHtml(oferta.nome)}</h3><p class="nome-loja">🏪 ${escapeHtml(oferta.loja || 'Loja não informada')} ${oferta.tipoLoja ? `<span class="loja-badge ${escapeHtml(oferta.tipoLoja.code)}">${escapeHtml(oferta.tipoLoja.label)}</span>` : ''} ${oferta.origemLoja ? `<span class="origem-badge ${escapeHtml(oferta.origemLoja.code)}">${escapeHtml(oferta.origemLoja.label)}</span>` : ''}</p><div class="oferta-meta"><span>${formatarMoeda(Number(oferta.preco) || 0)}</span><span>${escapeHtml(oferta.categoria || 'outros')}</span>${historico ? `<span>📉 Menor registrado: ${formatarMoeda(historico.menor)}</span>` : ''}${oferta.codigoCupom ? `<span>🎟️ ${escapeHtml(oferta.codigoCupom)}</span>` : ''}</div></div>
         <div><span class="status-chip ${statusOferta(oferta)}">${statusOferta(oferta)}</span> <span class="score-badge ${analise.faixa}">${analise.nota}/100</span></div>
       </div>
       <div class="analise-box"><p class="analise-titulo">${analise.recomendacao}</p><ul class="sinais">${sinais}</ul></div>
@@ -476,6 +561,9 @@ document.addEventListener('DOMContentLoaded', () => {
   renderLucro();
   renderCanais();
   renderTriagem();
+  renderAlertas();
+  configurarAutomacao();
+  document.getElementById('intervalo-automacao').value = localStorage.getItem(AUTOMACAO_KEY) || '0';
 
   const appIdSalvo = localStorage.getItem(APPID_KEY);
   if (appIdSalvo) document.getElementById('cfg-appid').value = appIdSalvo;
@@ -523,6 +611,21 @@ document.addEventListener('DOMContentLoaded', () => {
       renderCanais();
     }
     input.value = '';
+  });
+
+  document.getElementById('form-alerta').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const termo = document.getElementById('alerta-termo').value.trim();
+    const precoMax = Number(document.getElementById('alerta-preco').value) || 0;
+    alertas.push({ id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), termo, precoMax, ativo: true, encontradas: 0 });
+    salvarAlertas(); renderAlertas(); e.target.reset();
+    if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission();
+  });
+  document.getElementById('salvar-automacao').addEventListener('click', () => {
+    const minutos = Number(document.getElementById('intervalo-automacao').value) || 0;
+    localStorage.setItem(AUTOMACAO_KEY, String(minutos));
+    configurarAutomacao();
+    document.getElementById('status-automacao').textContent = minutos ? `Busca automática a cada ${minutos} minutos enquanto o painel estiver aberto.` : 'Busca automática desativada.';
   });
 
   document.getElementById('salvar-appid').addEventListener('click', () => {
