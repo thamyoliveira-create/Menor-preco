@@ -140,6 +140,7 @@ input, select, textarea {
 }
 
 .oferta-item h3 { margin: 0; font-size: 1rem; }
+.nome-loja { color: #666; font-size: .8rem; margin: 4px 0 0; }
 
 .score-badge {
   background: #fff3ee;
