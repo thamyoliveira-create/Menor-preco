@@ -64,18 +64,19 @@ function keywordMatch(name, keyword) {
   return tokens.filter((token) => normalizedName.includes(token)).length / tokens.length;
 }
 
-function quality(item, keyword, storeSearch = false, flashSearch = false) {
+function quality(item, keyword, storeSearch = false, flashSearch = false, profile = 'strict') {
   const rating = number(item.ratingStar);
   const sales = number(item.sales);
   const badge = shopBadge(item.shopType).code;
   const match = storeSearch ? 1 : keywordMatch(item.productName, keyword);
   const discount = normalizePercent(item.priceDiscountRate);
-  const valid = number(item.priceMin || item.priceMax) > 0 && item.productName && item.productLink && match >= 0.5 && (!flashSearch || discount >= 10);
+  const valid = number(item.priceMin || item.priceMax) > 0 && item.productName && (item.productLink || item.offerLink) && match >= 0.5 && (!flashSearch || discount >= 10);
+  const strict = profile !== 'balanced';
   const trusted = badge === 'official'
-    ? rating >= 4.3 && sales >= 5
+    ? rating >= (strict ? 4.3 : 4.0) && sales >= (strict ? 5 : 0)
     : badge === 'preferred' || badge === 'preferred_plus'
-      ? rating >= 4.5 && sales >= 20
-      : rating >= 4.7 && sales >= 100;
+      ? rating >= (strict ? 4.5 : 4.3) && sales >= (strict ? 20 : 5)
+      : rating >= (strict ? 4.7 : 4.5) && sales >= (strict ? 100 : 20);
   const badgePoints = badge === 'official' ? 15 : badge === 'preferred_plus' ? 12 : badge === 'preferred' ? 9 : 0;
   const score = match * 40 + Math.max(0, rating - 4) * 25 + Math.min(Math.log10(sales + 1) * 7, 20) + badgePoints;
   return { eligible: Boolean(valid && trusted), match, score: Math.max(0, Math.min(100, Math.round(score))) };
@@ -187,9 +188,13 @@ module.exports = async function handler(req, res) {
   const store = String(req.query.store || '').trim().slice(0, 200);
   const allowedSorts = new Set([1, 2, 4, 5]);
   const sortType = allowedSorts.has(Number(req.query.sortType)) ? Number(req.query.sortType) : 1;
-  if (keyword.length < 2 && store.length < 2) return res.status(400).json({ error: 'Informe um produto ou uma loja.' });
-  const flashSearch = /oferta(?:s)?\s+rel[aâ]mpago|rel[aâ]mpago/i.test(keyword);
-  const productKeyword = flashSearch ? '' : keyword;
+  const requestedMode = ['products', 'flash', 'official'].includes(String(req.query.mode)) ? String(req.query.mode) : 'products';
+  const qualityProfile = req.query.quality === 'balanced' ? 'balanced' : 'strict';
+  const originFilter = ['national', 'international'].includes(String(req.query.origin)) ? String(req.query.origin) : 'any';
+  if (keyword.length < 2 && store.length < 2 && requestedMode === 'products') return res.status(400).json({ error: 'Informe um produto ou escolha outro tipo de busca.' });
+  const genericFlashTerm = /oferta(?:s)?\s+rel[aâ]mpago|rel[aâ]mpago/i.test(keyword);
+  const flashSearch = requestedMode === 'flash' || genericFlashTerm;
+  const productKeyword = genericFlashTerm ? '' : keyword;
 
   try {
     const resolvedStore = store ? await resolveShop(store, endpoint, appId, secret) : null;
@@ -201,7 +206,7 @@ module.exports = async function handler(req, res) {
       const discountPercent = normalizePercent(item.priceDiscountRate);
       const previousPrice = discountPercent > 0 && discountPercent < 100 ? price / (1 - discountPercent / 100) : 0;
       const origin = await shopOrigin(item.productLink);
-      const productQuality = quality(item, productKeyword, Boolean(store), flashSearch);
+      const productQuality = quality(item, productKeyword, Boolean(store), flashSearch, qualityProfile);
       return {
         itemId: String(item.itemId),
         name: item.productName,
@@ -223,8 +228,14 @@ module.exports = async function handler(req, res) {
         eligible: productQuality.eligible,
       };
     }));
-    const offers = mappedOffers.filter((item) => item.eligible);
-    offers.sort((a, b) => b.relevanceScore - a.relevanceScore);
+    const offers = mappedOffers.filter((item) => item.eligible &&
+      (requestedMode !== 'official' || item.shopBadge.code === 'official') &&
+      (originFilter === 'any' || item.shopOrigin.code === originFilter));
+    offers.sort((a, b) => sortType === 2
+      ? b.sales - a.sales
+      : sortType === 4
+        ? a.price - b.price
+        : b.relevanceScore - a.relevanceScore);
     const now = Math.floor(Date.now() / 1000);
     const campaigns = (data.campaigns?.nodes || [])
       .filter((campaign) => {
@@ -243,7 +254,7 @@ module.exports = async function handler(req, res) {
         endsAt: number(campaign.periodEndTime) > now + (86400 * 730) ? 0 : number(campaign.periodEndTime),
       }));
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    return res.status(200).json({ offers, campaigns, store: resolvedStore, filteredCount: mappedOffers.length - offers.length, searchMode: flashSearch ? 'flash' : 'products' });
+    return res.status(200).json({ offers, campaigns, store: resolvedStore, filteredCount: mappedOffers.length - offers.length, searchMode: requestedMode, qualityProfile, originFilter });
   } catch (error) {
     return res.status(502).json({ error: error.message || 'A Shopee não respondeu. Tente novamente em alguns instantes.' });
   }
