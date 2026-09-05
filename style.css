@@ -92,6 +92,10 @@ main { max-width: 900px; margin: 0 auto; padding: 20px 16px 60px; }
 .campanha-item strong { display: block; font-size: .78rem; line-height: 1.25; }
 .campanha-item p { color: #6b6b6b; font-size: .7rem; margin: 3px 0; }
 .campanha-item a { color: var(--laranja); font-size: .72rem; font-weight: 700; }
+.alerta-form { align-items: end; }
+.alerta-form .btn-primary { min-height: 39px; }
+.alerta-item { align-items: center; background: white; border: 1px solid var(--borda); border-radius: 10px; display: flex; justify-content: space-between; gap: 12px; padding: 14px 16px; }
+.alerta-item p { color: #666; font-size: .78rem; margin: 4px 0 0; }
 
 .grid {
   display: grid;
