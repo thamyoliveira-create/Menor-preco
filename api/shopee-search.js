@@ -52,13 +52,32 @@ function normalizePercent(value) {
   return parsed > 0 && parsed <= 1 ? parsed * 100 : parsed;
 }
 
-function relevance(item) {
-  const discount = Math.min(normalizePercent(item.priceDiscountRate), 60);
+function normalizeText(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function keywordMatch(name, keyword) {
+  const ignored = new Set(['barato', 'barata', 'oferta', 'ofertas', 'promocao', 'desconto', 'melhor', 'preco']);
+  const tokens = normalizeText(keyword).split(/[^a-z0-9]+/).filter((token) => token.length > 2 && !ignored.has(token));
+  if (!tokens.length) return 1;
+  const normalizedName = normalizeText(name);
+  return tokens.filter((token) => normalizedName.includes(token)).length / tokens.length;
+}
+
+function quality(item, keyword, storeSearch = false) {
   const rating = number(item.ratingStar);
   const sales = number(item.sales);
-  const commission = normalizePercent(item.commissionRate);
-  const score = discount * 0.55 + Math.max(0, rating - 3) * 18 + Math.min(Math.log10(sales + 1) * 7, 18) + Math.min(commission * 0.25, 5);
-  return Math.max(0, Math.min(100, Math.round(score)));
+  const badge = shopBadge(item.shopType).code;
+  const match = storeSearch ? 1 : keywordMatch(item.productName, keyword);
+  const valid = number(item.priceMin || item.priceMax) > 0 && item.productName && item.productLink && match >= 0.5;
+  const trusted = badge === 'official'
+    ? rating >= 4.3 && sales >= 5
+    : badge === 'preferred' || badge === 'preferred_plus'
+      ? rating >= 4.5 && sales >= 20
+      : rating >= 4.7 && sales >= 100;
+  const badgePoints = badge === 'official' ? 15 : badge === 'preferred_plus' ? 12 : badge === 'preferred' ? 9 : 0;
+  const score = match * 40 + Math.max(0, rating - 4) * 25 + Math.min(Math.log10(sales + 1) * 7, 20) + badgePoints;
+  return { eligible: Boolean(valid && trusted), match, score: Math.max(0, Math.min(100, Math.round(score))) };
 }
 
 function shopBadge(shopType) {
@@ -174,11 +193,12 @@ module.exports = async function handler(req, res) {
     if (store && !resolvedStore) return res.status(404).json({ error: 'Não encontrei essa loja. Confira o nome ou cole o link completo da loja.' });
     const data = await callShopee(endpoint, appId, secret, searchQuery(resolvedStore?.id), { keyword: keyword || null, sortType, page: 1, limit: 30 });
     const nodes = data.productOfferV2?.nodes || [];
-    const offers = await Promise.all(nodes.map(async (item) => {
+    const mappedOffers = await Promise.all(nodes.map(async (item) => {
       const price = number(item.priceMin || item.priceMax);
       const discountPercent = normalizePercent(item.priceDiscountRate);
       const previousPrice = discountPercent > 0 && discountPercent < 100 ? price / (1 - discountPercent / 100) : 0;
       const origin = await shopOrigin(item.productLink);
+      const productQuality = quality(item, keyword, Boolean(store));
       return {
         itemId: String(item.itemId),
         name: item.productName,
@@ -195,9 +215,12 @@ module.exports = async function handler(req, res) {
         shopName: item.shopName,
         shopBadge: shopBadge(item.shopType),
         shopOrigin: origin,
-        relevanceScore: relevance(item),
+        relevanceScore: productQuality.score,
+        keywordMatch: productQuality.match,
+        eligible: productQuality.eligible,
       };
     }));
+    const offers = mappedOffers.filter((item) => item.eligible);
     offers.sort((a, b) => b.relevanceScore - a.relevanceScore);
     const now = Math.floor(Date.now() / 1000);
     const campaigns = (data.campaigns?.nodes || [])
@@ -217,7 +240,7 @@ module.exports = async function handler(req, res) {
         endsAt: number(campaign.periodEndTime) > now + (86400 * 730) ? 0 : number(campaign.periodEndTime),
       }));
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    return res.status(200).json({ offers, campaigns, store: resolvedStore });
+    return res.status(200).json({ offers, campaigns, store: resolvedStore, filteredCount: mappedOffers.length - offers.length });
   } catch (error) {
     return res.status(502).json({ error: error.message || 'A Shopee não respondeu. Tente novamente em alguns instantes.' });
   }
