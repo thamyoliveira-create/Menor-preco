@@ -48,6 +48,16 @@ function shopBadge(shopType) {
   return { code: 'regular', label: 'Loja comum' };
 }
 
+function inferCategory(keyword) {
+  const value = keyword.toLocaleLowerCase('pt-BR');
+  if (/maquiagem|beleza|skincare|perfume|cosm[eé]tico|cabelo/.test(value)) return 'beleza';
+  if (/infantil|crian[cç]a|beb[eê]|brinquedo/.test(value)) return 'infantil';
+  if (/roupa|moda|vestido|blusa|cal[cç]a|conjunto|sapato/.test(value)) return 'moda';
+  if (/casa|cozinha|organiza[cç][aã]o|decora[cç][aã]o/.test(value)) return 'casa';
+  if (/eletr[oô]nico|celular|fone|computador|gamer/.test(value)) return 'eletronicos';
+  return 'outros';
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido.' });
   const appId = process.env.SHOPEE_APP_ID;
@@ -89,6 +99,7 @@ module.exports = async function handler(req, res) {
       return {
         itemId: String(item.itemId),
         name: item.productName,
+        category: inferCategory(keyword),
         productLink: item.productLink,
         offerLink: item.offerLink,
         imageUrl: item.imageUrl,
