@@ -15,6 +15,7 @@
   <nav class="tabs">
     <button class="tab-btn active" data-tab="triagem">Ofertas para enviar</button>
     <button class="tab-btn" data-tab="ofertas">Cadastrar oferta</button>
+    <button class="tab-btn" data-tab="alertas">Alertas</button>
     <button class="tab-btn" data-tab="lucro">Lucro</button>
     <button class="tab-btn" data-tab="config">Configurações</button>
   </nav>
@@ -82,6 +83,38 @@
       </form>
 
       <div id="lista-ofertas" class="lista-ofertas"></div>
+    </section>
+
+    <section id="tab-alertas" class="tab-panel">
+      <div class="card">
+        <p class="eyebrow">Monitoramento</p>
+        <h2>Alertas de ofertas</h2>
+        <p class="hint">Cadastre o produto e, se quiser, o preço máximo. O navegador avisa quando uma busca encontrar resultados compatíveis.</p>
+        <form id="form-alerta" class="grid alerta-form">
+          <label>Produto ou termo
+            <input id="alerta-termo" type="text" required placeholder="Ex: protetor solar" />
+          </label>
+          <label>Preço máximo (opcional)
+            <input id="alerta-preco" type="number" min="0" step="0.01" placeholder="Ex: 39,90" />
+          </label>
+          <button type="submit" class="btn-primary">Criar alerta</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Busca automática</h2>
+        <p class="hint">Nesta versão, a repetição funciona enquanto o painel estiver aberto.</p>
+        <div class="inline-form">
+          <select id="intervalo-automacao" aria-label="Intervalo da busca automática">
+            <option value="0">Desativada</option>
+            <option value="15">A cada 15 minutos</option>
+            <option value="30">A cada 30 minutos</option>
+            <option value="60">A cada 1 hora</option>
+          </select>
+          <button id="salvar-automacao" type="button" class="btn-secondary">Salvar intervalo</button>
+        </div>
+        <p id="status-automacao" class="status"></p>
+      </div>
+      <div id="lista-alertas" class="lista-ofertas"></div>
     </section>
 
     <!-- ABA TRIAGEM -->
