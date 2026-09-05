@@ -57,19 +57,20 @@ function normalizeText(value) {
 }
 
 function keywordMatch(name, keyword) {
-  const ignored = new Set(['barato', 'barata', 'oferta', 'ofertas', 'promocao', 'desconto', 'melhor', 'preco']);
+  const ignored = new Set(['barato', 'barata', 'oferta', 'ofertas', 'relampago', 'promocao', 'desconto', 'melhor', 'preco']);
   const tokens = normalizeText(keyword).split(/[^a-z0-9]+/).filter((token) => token.length > 2 && !ignored.has(token));
   if (!tokens.length) return 1;
   const normalizedName = normalizeText(name);
   return tokens.filter((token) => normalizedName.includes(token)).length / tokens.length;
 }
 
-function quality(item, keyword, storeSearch = false) {
+function quality(item, keyword, storeSearch = false, flashSearch = false) {
   const rating = number(item.ratingStar);
   const sales = number(item.sales);
   const badge = shopBadge(item.shopType).code;
   const match = storeSearch ? 1 : keywordMatch(item.productName, keyword);
-  const valid = number(item.priceMin || item.priceMax) > 0 && item.productName && item.productLink && match >= 0.5;
+  const discount = normalizePercent(item.priceDiscountRate);
+  const valid = number(item.priceMin || item.priceMax) > 0 && item.productName && item.productLink && match >= 0.5 && (!flashSearch || discount >= 10);
   const trusted = badge === 'official'
     ? rating >= 4.3 && sales >= 5
     : badge === 'preferred' || badge === 'preferred_plus'
@@ -187,22 +188,24 @@ module.exports = async function handler(req, res) {
   const allowedSorts = new Set([1, 2, 4, 5]);
   const sortType = allowedSorts.has(Number(req.query.sortType)) ? Number(req.query.sortType) : 1;
   if (keyword.length < 2 && store.length < 2) return res.status(400).json({ error: 'Informe um produto ou uma loja.' });
+  const flashSearch = /oferta(?:s)?\s+rel[aâ]mpago|rel[aâ]mpago/i.test(keyword);
+  const productKeyword = flashSearch ? '' : keyword;
 
   try {
     const resolvedStore = store ? await resolveShop(store, endpoint, appId, secret) : null;
     if (store && !resolvedStore) return res.status(404).json({ error: 'Não encontrei essa loja. Confira o nome ou cole o link completo da loja.' });
-    const data = await callShopee(endpoint, appId, secret, searchQuery(resolvedStore?.id), { keyword: keyword || null, sortType, page: 1, limit: 30 });
+    const data = await callShopee(endpoint, appId, secret, searchQuery(resolvedStore?.id), { keyword: productKeyword || null, sortType, page: 1, limit: 30 });
     const nodes = data.productOfferV2?.nodes || [];
     const mappedOffers = await Promise.all(nodes.map(async (item) => {
       const price = number(item.priceMin || item.priceMax);
       const discountPercent = normalizePercent(item.priceDiscountRate);
       const previousPrice = discountPercent > 0 && discountPercent < 100 ? price / (1 - discountPercent / 100) : 0;
       const origin = await shopOrigin(item.productLink);
-      const productQuality = quality(item, keyword, Boolean(store));
+      const productQuality = quality(item, productKeyword, Boolean(store), flashSearch);
       return {
         itemId: String(item.itemId),
         name: item.productName,
-        category: inferCategory(keyword || store),
+        category: inferCategory(productKeyword || store),
         productLink: item.productLink,
         offerLink: item.offerLink,
         imageUrl: item.imageUrl,
@@ -240,7 +243,7 @@ module.exports = async function handler(req, res) {
         endsAt: number(campaign.periodEndTime) > now + (86400 * 730) ? 0 : number(campaign.periodEndTime),
       }));
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    return res.status(200).json({ offers, campaigns, store: resolvedStore, filteredCount: mappedOffers.length - offers.length });
+    return res.status(200).json({ offers, campaigns, store: resolvedStore, filteredCount: mappedOffers.length - offers.length, searchMode: flashSearch ? 'flash' : 'products' });
   } catch (error) {
     return res.status(502).json({ error: error.message || 'A Shopee não respondeu. Tente novamente em alguns instantes.' });
   }
