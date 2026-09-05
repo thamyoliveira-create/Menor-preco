@@ -21,6 +21,74 @@ function salvarOfertas(ofertas) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(ofertas));
 }
 
+function normalizarTaxa(valor) {
+  const numero = Number(valor) || 0;
+  return numero > 0 && numero <= 1 ? numero * 100 : numero;
+}
+
+async function buscarOfertasShopee() {
+  const termo = document.getElementById('busca-shopee').value.trim();
+  const sortType = Number(document.getElementById('ordem-shopee').value) || 1;
+  const status = document.getElementById('status-busca-shopee');
+  const botao = document.getElementById('buscar-shopee');
+  if (termo.length < 2) {
+    status.className = 'status-busca erro';
+    status.textContent = 'Digite o produto ou a categoria que deseja procurar.';
+    return;
+  }
+
+  botao.disabled = true;
+  status.className = 'status-busca';
+  status.textContent = 'Procurando ofertas e comparando os resultados…';
+  try {
+    const resposta = await fetch(`/api/shopee-search?keyword=${encodeURIComponent(termo)}&sortType=${sortType}`);
+    const dados = await resposta.json();
+    if (!resposta.ok) throw new Error(dados.error || 'Não foi possível consultar a Shopee.');
+
+    let novas = 0;
+    dados.offers.forEach((item) => {
+      const existente = ofertas.find((o) => o.source === 'shopee' && String(o.sourceId) === String(item.itemId));
+      const oferta = {
+        id: existente?.id || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${item.itemId}`),
+        source: 'shopee',
+        sourceId: String(item.itemId),
+        nome: item.name,
+        categoria: item.category || 'outros',
+        imagem: item.imageUrl || '',
+        preco: item.price,
+        precoAnterior: item.previousPrice || 0,
+        link: item.offerLink || item.productLink,
+        desconto: item.discountPercent || 0,
+        comissao: normalizarTaxa(item.commissionRate),
+        comissaoExtra: 0,
+        avaliacao: item.rating || 0,
+        qtdAvaliacoes: item.sales || 0,
+        cupom: item.couponCode ? 'sim' : 'nao',
+        codigoCupom: item.couponCode || '',
+        frete: item.freeShipping ? 'sim' : 'nao',
+        vendas: existente?.vendas || 0,
+        statusCuradoria: existente?.statusCuradoria || 'pendente',
+        buscadaEm: new Date().toISOString(),
+      };
+      if (existente) Object.assign(existente, oferta);
+      else { ofertas.push(oferta); novas += 1; }
+    });
+    salvarOfertas(ofertas);
+    document.getElementById('busca-ofertas').value = termo;
+    document.getElementById('filtro-status').value = 'todos';
+    renderOfertas();
+    renderLucro();
+    renderTriagem();
+    status.className = 'status-busca sucesso';
+    status.textContent = `${dados.offers.length} ofertas analisadas; ${novas} adicionadas à sua seleção.`;
+  } catch (erro) {
+    status.className = 'status-busca erro';
+    status.textContent = erro.message;
+  } finally {
+    botao.disabled = false;
+  }
+}
+
 function carregarCanais() {
   try {
     const salvos = JSON.parse(localStorage.getItem(CANAIS_KEY));
@@ -187,7 +255,9 @@ function renderTriagem() {
       ...analise.positivos.map((s) => `<li class="positivo">${escapeHtml(s)}</li>`),
       ...analise.alertas.map((s) => `<li class="alerta">${escapeHtml(s)}</li>`),
     ].join('');
-    return `<article class="oferta-item">
+    return `<article class="oferta-item oferta-com-imagem">
+      ${oferta.imagem ? `<img class="oferta-imagem" src="${escapeHtml(oferta.imagem)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ''}
+      <div class="oferta-conteudo">
       <div class="topo">
         <div><h3>${escapeHtml(oferta.nome)}</h3><div class="oferta-meta"><span>${formatarMoeda(Number(oferta.preco) || 0)}</span><span>${escapeHtml(oferta.categoria || 'outros')}</span>${oferta.codigoCupom ? `<span>🎟️ ${escapeHtml(oferta.codigoCupom)}</span>` : ''}</div></div>
         <div><span class="status-chip ${statusOferta(oferta)}">${statusOferta(oferta)}</span> <span class="score-badge ${analise.faixa}">${analise.nota}/100</span></div>
@@ -198,6 +268,7 @@ function renderTriagem() {
         <button class="btn-approve" data-curadoria="aprovada" data-id="${oferta.id}">Aprovar para envio</button>
         <button class="btn-reject" data-curadoria="rejeitada" data-id="${oferta.id}">Rejeitar</button>
         ${statusOferta(oferta) === 'aprovada' ? `<button class="btn-primary" data-acao="gerar" data-id="${oferta.id}">Enviar esta oferta</button>` : ''}
+      </div>
       </div>
     </article>`;
   }).join('');
@@ -430,6 +501,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('modal-fechar').addEventListener('click', fecharModal);
   ['busca-ofertas', 'filtro-status', 'filtro-categoria', 'filtro-nota'].forEach((id) => {
     document.getElementById(id).addEventListener(id === 'busca-ofertas' ? 'input' : 'change', renderTriagem);
+  });
+  document.getElementById('buscar-shopee').addEventListener('click', buscarOfertasShopee);
+  document.getElementById('busca-shopee').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') buscarOfertasShopee();
   });
   document.getElementById('modal-copiar').addEventListener('click', async () => {
     const texto = document.getElementById('modal-texto').value;
