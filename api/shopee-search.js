@@ -160,7 +160,8 @@ module.exports = async function handler(req, res) {
     const campaigns = (data.data?.campaigns?.nodes || [])
       .filter((campaign) => {
         const end = number(campaign.periodEndTime);
-        return (!end || end >= now) && /cupom|desconto|\boff\b|frete|loja oficial/i.test(campaign.offerName || '');
+        const start = number(campaign.periodStartTime);
+        return (!start || start <= now) && (!end || end >= now);
       })
       .slice(0, 8)
       .map((campaign, index) => ({
