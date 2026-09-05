@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PreçoMenor</title>
-  <link rel="stylesheet" href="style.css?v=20260905-4" />
+  <link rel="stylesheet" href="style.css?v=20260905-5" />
 </head>
 <body>
   <header class="app-header">
@@ -132,15 +132,37 @@
           <label class="campo-busca">O que a IA deve procurar na Shopee?
             <input type="search" id="busca-shopee" placeholder="Ex: air fryer barata, material escolar, fone bluetooth" />
           </label>
-          <label>Ordenar resultados
-            <select id="ordem-shopee">
-              <option value="1">Mais relevantes</option>
-              <option value="2">Mais vendidos</option>
-              <option value="5">Maior comissão</option>
-              <option value="4">Menor preço</option>
+          <label>Tipo de busca
+            <select id="modo-shopee">
+              <option value="products">Produtos</option>
+              <option value="flash">Ofertas Relâmpago</option>
+              <option value="official">Lojas Oficiais</option>
             </select>
           </label>
           <button type="button" id="buscar-shopee" class="btn-primary">Buscar ofertas agora</button>
+        </div>
+        <div class="criterios-busca" aria-label="Critérios de qualidade">
+          <label>Nível de segurança
+            <select id="qualidade-shopee">
+              <option value="strict">Rigoroso</option>
+              <option value="balanced">Equilibrado</option>
+            </select>
+          </label>
+          <label>Origem da loja
+            <select id="origem-shopee">
+              <option value="any">Nacional ou internacional</option>
+              <option value="national">Somente nacional</option>
+              <option value="international">Somente internacional</option>
+            </select>
+          </label>
+          <label>Ordenar resultados
+            <select id="ordem-shopee">
+              <option value="1">Maior confiança</option>
+              <option value="2">Mais vendidos</option>
+              <option value="4">Menor preço</option>
+            </select>
+          </label>
+          <button type="button" id="limpar-resultados" class="btn-link">Limpar a tela</button>
         </div>
         <div class="busca-loja">
           <label class="campo-busca">Procurar ofertas em uma loja específica
@@ -158,6 +180,7 @@
           <button type="button" data-busca-rapida="itens escolares" data-categoria="outros">Itens escolares</button>
           <button type="button" data-busca-rapida="casa e cozinha" data-categoria="casa">Casa e cozinha</button>
           <button type="button" data-busca-rapida="eletrônicos" data-categoria="eletronicos">Eletrônicos</button>
+          <button type="button" data-modo-rapido="flash">Ofertas Relâmpago</button>
         </div>
         <p id="status-busca-shopee" class="status-busca" aria-live="polite"></p>
         <section id="campanhas-shopee" class="campanhas-box hidden" aria-live="polite">
@@ -196,9 +219,9 @@
           <label>Nota mínima
             <select id="filtro-nota">
               <option value="0">Qualquer nota</option>
-              <option value="50">50 ou mais</option>
-              <option value="70">70 ou mais</option>
-              <option value="85">85 ou mais</option>
+              <option value="65">Revisar (65+)</option>
+              <option value="80">Confiáveis (80+)</option>
+              <option value="90">Excelentes (90+)</option>
             </select>
           </label>
         </div>
@@ -263,6 +286,6 @@
     </div>
   </div>
 
-  <script src="script.js?v=20260905-4"></script>
+  <script src="script.js?v=20260905-5"></script>
 </body>
 </html>
