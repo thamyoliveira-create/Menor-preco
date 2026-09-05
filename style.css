@@ -79,6 +79,10 @@ main { max-width: 900px; margin: 0 auto; padding: 20px 16px 60px; }
 .status-busca { color: #555; font-size: .84rem; margin: 8px 2px 0; min-height: 1.2em; }
 .status-busca.erro { color: var(--vermelho); }
 .status-busca.sucesso { color: var(--verde); }
+.grupos-rapidos { align-items: center; display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.grupos-rapidos span { color: #666; font-size: .78rem; font-weight: 650; }
+.grupos-rapidos button { background: white; border: 1px solid var(--borda); border-radius: 999px; color: #555; cursor: pointer; font-size: .78rem; padding: 6px 10px; }
+.grupos-rapidos button:hover { border-color: var(--laranja); color: var(--laranja); }
 
 .grid {
   display: grid;
