@@ -184,6 +184,10 @@ input, select, textarea {
 .status-chip.aprovada { background: #eaf8f0; color: var(--verde); }
 .status-chip.rejeitada { background: #fff0f0; color: var(--vermelho); }
 .analise-box { background: #fafafa; border: 1px solid var(--borda); border-radius: 8px; margin-top: 10px; padding: 10px 12px; }
+.ia-selecao { display: grid; gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 10px; }
+.ia-selecao div { background: #fff7f2; border: 1px solid #ffd9ca; border-radius: 8px; padding: 8px 10px; }
+.ia-selecao span { color: #777; display: block; font-size: .68rem; margin-bottom: 3px; }
+.ia-selecao strong { color: var(--texto); display: block; font-size: .82rem; }
 .analise-titulo { font-size: .82rem; font-weight: 700; margin: 0 0 7px; }
 .sinais { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 12px; margin: 0; padding: 0; list-style: none; }
 .sinais li { color: #555; font-size: .8rem; }
@@ -291,6 +295,7 @@ input, select, textarea {
   .busca-loja { grid-template-columns: 1fr; }
   .campo-busca { grid-column: 1 / -1; }
   .sinais { grid-template-columns: 1fr; }
+  .ia-selecao { grid-template-columns: 1fr; }
   .oferta-imagem { flex-basis: 84px; height: 84px; width: 84px; }
   .lista-campanhas { grid-template-columns: 1fr; }
 }
