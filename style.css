@@ -148,6 +148,9 @@ input, select, textarea {
 .loja-badge { background: #f2f3f5; border-radius: 999px; color: #555; display: inline-block; font-size: .69rem; font-weight: 700; margin-left: 5px; padding: 2px 7px; vertical-align: 1px; }
 .loja-badge.official { background: #fff0eb; color: var(--laranja); }
 .loja-badge.preferred, .loja-badge.preferred_plus { background: #eaf8f0; color: var(--verde); }
+.origem-badge { background: #eef3ff; border-radius: 999px; color: #315ea8; display: inline-block; font-size: .69rem; font-weight: 700; margin-left: 5px; padding: 2px 7px; vertical-align: 1px; }
+.origem-badge.international { background: #fff4df; color: #8a5a00; }
+.origem-badge.unknown { background: #f2f3f5; color: #666; }
 
 .score-badge {
   background: #fff3ee;
