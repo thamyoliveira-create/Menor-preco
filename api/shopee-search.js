@@ -58,6 +58,33 @@ function inferCategory(keyword) {
   return 'outros';
 }
 
+function shopIdFromLink(productLink) {
+  const match = String(productLink || '').match(/\/product\/(\d+)\/\d+/);
+  return match?.[1] || '';
+}
+
+async function shopOrigin(productLink) {
+  const shopId = shopIdFromLink(productLink);
+  if (!shopId) return { code: 'unknown', label: 'Origem não informada' };
+
+  try {
+    const response = await fetch(`https://shopee.com.br/api/v4/shop/get_shop_detail?shopid=${shopId}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(3000),
+    });
+    const data = await response.json();
+    const shop = data?.data;
+    if (!response.ok || !shop) throw new Error('Loja não encontrada');
+    if (Number(shop.cb_option) > 0) return { code: 'international', label: 'Internacional' };
+    if (shop.country === 'BR') return { code: 'national', label: 'Nacional' };
+    return shop.country
+      ? { code: 'international', label: 'Internacional' }
+      : { code: 'unknown', label: 'Origem não informada' };
+  } catch {
+    return { code: 'unknown', label: 'Origem não informada' };
+  }
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido.' });
   const appId = process.env.SHOPEE_APP_ID;
@@ -92,10 +119,11 @@ module.exports = async function handler(req, res) {
       return res.status(502).json({ error: message });
     }
     const nodes = data.data?.productOfferV2?.nodes || [];
-    const offers = nodes.map((item) => {
+    const offers = await Promise.all(nodes.map(async (item) => {
       const price = number(item.priceMin || item.priceMax);
       const discountPercent = normalizePercent(item.priceDiscountRate);
       const previousPrice = discountPercent > 0 && discountPercent < 100 ? price / (1 - discountPercent / 100) : 0;
+      const origin = await shopOrigin(item.productLink);
       return {
         itemId: String(item.itemId),
         name: item.productName,
@@ -111,9 +139,11 @@ module.exports = async function handler(req, res) {
         commissionRate: normalizePercent(item.commissionRate),
         shopName: item.shopName,
         shopBadge: shopBadge(item.shopType),
+        shopOrigin: origin,
         relevanceScore: relevance(item),
       };
-    }).sort((a, b) => b.relevanceScore - a.relevanceScore);
+    }));
+    offers.sort((a, b) => b.relevanceScore - a.relevanceScore);
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
     return res.status(200).json({ offers });
   } catch {
