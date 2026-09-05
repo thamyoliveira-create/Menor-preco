@@ -128,7 +128,8 @@ async function buscarOfertasShopee(porLoja = false) {
     verificarAlertas(dados.offers);
     status.className = 'status-busca sucesso';
     const origemBusca = dados.store?.name ? ` da loja ${dados.store.name}` : porLoja ? ' da loja escolhida' : '';
-    status.textContent = `${dados.offers.length} ofertas${origemBusca} analisadas; ${novas} adicionadas à sua seleção.`;
+    const descartadas = Number(dados.filteredCount) || 0;
+    status.textContent = `${dados.offers.length} ofertas confiáveis${origemBusca}; ${descartadas} resultado(s) duvidoso(s) foram ocultados.`;
   } catch (erro) {
     status.className = 'status-busca erro';
     status.textContent = erro.message;
@@ -277,13 +278,14 @@ function analisarPertinencia(oferta) {
   const comissao = (Number(oferta.comissao) || 0) + (Number(oferta.comissaoExtra) || 0);
   const historico = resumoHistorico(oferta);
   const preco = Number(oferta.preco) || 0;
-  let nota = desconto * 0.55;
-  nota += Math.max(0, avaliacao - 3) * 18;
-  nota += Math.min(Math.log10(qtdAvaliacoes + 1) * 7, 18);
-  nota += oferta.frete === 'sim' ? 8 : 0;
-  nota += oferta.cupom === 'sim' ? 7 : 0;
-  nota += Math.min(comissao * 0.25, 5);
-  nota += Math.min((Number(oferta.vendas) || 0) * 2, 8);
+  const tipoLoja = oferta.tipoLoja?.code || 'regular';
+  const pontosLoja = tipoLoja === 'official' ? 20 : tipoLoja === 'preferred_plus' ? 16 : tipoLoja === 'preferred' ? 12 : 0;
+  let nota = Math.max(0, avaliacao - 4) * 30;
+  nota += Math.min(Math.log10(qtdAvaliacoes + 1) * 9, 27);
+  nota += pontosLoja;
+  nota += Math.min(desconto * 0.3, 15);
+  nota += oferta.frete === 'sim' ? 5 : 0;
+  nota += oferta.cupom === 'sim' ? 3 : 0;
 
   const positivos = [];
   const alertas = [];
@@ -293,6 +295,9 @@ function analisarPertinencia(oferta) {
   else if (avaliacao < 4.2) alertas.push('Avaliação abaixo de 4,2');
   if (qtdAvaliacoes >= 100) positivos.push(`${qtdAvaliacoes} avaliações dão mais confiança`);
   else if (qtdAvaliacoes < 20) alertas.push('Poucas avaliações para validar o produto');
+  if (tipoLoja === 'official') positivos.push('Vendido por Loja Oficial');
+  else if (tipoLoja === 'preferred' || tipoLoja === 'preferred_plus') positivos.push('Loja indicada pela Shopee');
+  else alertas.push('Loja comum: exige avaliação e vendas mais altas');
   if (oferta.frete === 'sim') positivos.push('Frete grátis reduz objeção de compra');
   else alertas.push('Sem frete grátis informado');
   if (oferta.cupom === 'sim') positivos.push('Cupom disponível');
@@ -301,9 +306,9 @@ function analisarPertinencia(oferta) {
   if (!oferta.link || !/^https:\/\//i.test(oferta.link)) alertas.push('Link do produto precisa ser conferido');
 
   nota = Math.max(0, Math.min(100, Math.round(nota)));
-  const faixa = nota >= 75 ? 'alta' : nota >= 50 ? 'media' : 'baixa';
-  const recomendacao = nota >= 75 ? 'Boa candidata para o grupo' : nota >= 50 ? 'Confira os alertas antes de aprovar' : 'Pouco pertinente com os dados atuais';
-  const chanceVenda = Math.max(5, Math.min(95, Math.round(nota * 0.9 + Math.min(Math.log10(qtdAvaliacoes + 1) * 3, 8))));
+  const faixa = nota >= 80 ? 'alta' : nota >= 65 ? 'media' : 'baixa';
+  const recomendacao = nota >= 80 ? 'Oferta confiável para revisar' : nota >= 65 ? 'Exige conferência antes de enviar' : 'Não recomendada para envio';
+  const chanceVenda = nota;
   const ganhoPorVenda = preco * (comissao / 100);
   return { nota, faixa, recomendacao, positivos, alertas, chanceVenda, ganhoPorVenda, grupo: grupoRecomendado(oferta) };
 }
@@ -415,7 +420,7 @@ function renderTriagem() {
         <div><span class="status-chip ${statusOferta(oferta)}">${statusOferta(oferta)}</span> <span class="score-badge ${analise.faixa}">${analise.nota}/100</span></div>
       </div>
       <div class="ia-selecao">
-        <div><span>Chance estimada</span><strong>${analise.chanceVenda}%</strong></div>
+        <div><span>Índice de confiança</span><strong>${analise.chanceVenda}/100</strong></div>
         <div><span>Ganho por venda</span><strong>${formatarMoeda(analise.ganhoPorVenda)}</strong></div>
         <div><span>Melhor grupo</span><strong>${escapeHtml(analise.grupo)}</strong></div>
       </div>
