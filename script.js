@@ -46,6 +46,8 @@ async function buscarOfertasShopee() {
     if (!resposta.ok) throw new Error(dados.error || 'Não foi possível consultar a Shopee.');
 
     let novas = 0;
+    campanhas = Array.isArray(dados.campaigns) ? dados.campaigns : [];
+    renderCampanhas();
     const categoriaForcada = document.getElementById('busca-shopee').dataset.categoria || '';
     dados.offers.forEach((item) => {
       const existente = ofertas.find((o) => o.source === 'shopee' && String(o.sourceId) === String(item.itemId));
@@ -111,6 +113,29 @@ function salvarCanais(canais) {
 
 let ofertas = carregarOfertas();
 let canais = carregarCanais();
+let campanhas = [];
+
+function formatarDataCampanha(timestamp) {
+  if (!timestamp) return '';
+  return new Date(timestamp * 1000).toLocaleDateString('pt-BR');
+}
+
+function renderCampanhas() {
+  const secao = document.getElementById('campanhas-shopee');
+  const container = document.getElementById('lista-campanhas');
+  if (!secao || !container) return;
+  secao.classList.toggle('hidden', !campanhas.length);
+  container.innerHTML = campanhas.map((campanha) => `
+    <article class="campanha-item">
+      ${campanha.imageUrl ? `<img src="${escapeHtml(campanha.imageUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ''}
+      <div>
+        <strong>${escapeHtml(campanha.name)}</strong>
+        <p>${campanha.endsAt ? `Válida até ${formatarDataCampanha(campanha.endsAt)} · ` : ''}Confira as regras no carrinho</p>
+        ${campanha.link ? `<a href="${escapeHtml(campanha.link)}" target="_blank" rel="noopener noreferrer">Ver campanha na Shopee</a>` : ''}
+      </div>
+    </article>
+  `).join('');
+}
 
 // ---------- Cálculo de prioridade (Ofertas) ----------
 // Heurística simples: chance de venda (proxy = avaliação) + desconto +
