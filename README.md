@@ -12,6 +12,7 @@ Reconstruído em setembro/2026 a partir da descrição do projeto original (o re
 - **Busca na Shopee**: pesquisa produtos pela Affiliate Open API, importa até 30 resultados, calcula a pertinência e usa o link de oferta retornado pela própria API.
 - **Identificação da loja**: mostra o vendedor em cada cartão e inclui seu nome na mensagem preparada.
 - **Selo da loja**: diferencia lojas oficiais, indicadas, indicadas+ e vendedores comuns com base no tipo retornado pela Shopee.
+- **Grupos de pesquisa rápida**: atalhos para Beleza, Infantil, Moda feminina, Casa e cozinha e Eletrônicos.
 - **Aprovação humana**: toda oferta começa como pendente. A mensagem de WhatsApp só pode ser preparada depois que você aprovar o produto. Ofertas rejeitadas podem guardar o motivo da decisão.
 - **Aba Lucro**: para cada oferta, informe comissão normal (%), comissão extra (%) e quantidade de vendas registradas. O app calcula:
   - ganho estimado por venda
