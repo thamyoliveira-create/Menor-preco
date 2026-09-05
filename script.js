@@ -127,7 +127,7 @@ async function buscarOfertasShopee(porLoja = false) {
     renderTriagem();
     verificarAlertas(dados.offers);
     status.className = 'status-busca sucesso';
-    const origemBusca = dados.store?.name ? ` da loja ${dados.store.name}` : porLoja ? ' da loja escolhida' : '';
+    const origemBusca = dados.store?.name ? ` da loja ${dados.store.name}` : porLoja ? ' da loja escolhida' : dados.searchMode === 'flash' ? ' em Oferta Relâmpago' : '';
     const descartadas = Number(dados.filteredCount) || 0;
     status.textContent = `${dados.offers.length} ofertas confiáveis${origemBusca}; ${descartadas} resultado(s) duvidoso(s) foram ocultados.`;
   } catch (erro) {
