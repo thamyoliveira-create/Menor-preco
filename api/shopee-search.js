@@ -60,6 +60,13 @@ function shopBadge(shopType) {
   return { code: 'regular', label: 'Loja comum' };
 }
 
+function campaignName(value) {
+  return String(value || 'Campanha Shopee')
+    .replace(/^KOL_KOC_LT\s*-\s*BAU\s*-\s*/i, '')
+    .replace(/^BAU\s*-\s*/i, '')
+    .trim() || 'Campanha Shopee';
+}
+
 function inferCategory(keyword) {
   const value = keyword.toLocaleLowerCase('pt-BR');
   if (/maquiagem|beleza|skincare|perfume|cosm[eé]tico|cabelo/.test(value)) return 'beleza';
@@ -166,12 +173,12 @@ module.exports = async function handler(req, res) {
       .slice(0, 8)
       .map((campaign, index) => ({
         id: `${campaign.offerType || 0}-${campaign.periodEndTime || 0}-${index}`,
-        name: campaign.offerName || 'Campanha Shopee',
+        name: campaignName(campaign.offerName),
         imageUrl: campaign.imageUrl || '',
         link: campaign.offerLink || campaign.originalLink || '',
         commissionRate: normalizePercent(campaign.commissionRate),
         startsAt: number(campaign.periodStartTime),
-        endsAt: number(campaign.periodEndTime),
+        endsAt: number(campaign.periodEndTime) > now + (86400 * 730) ? 0 : number(campaign.periodEndTime),
       }));
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
     return res.status(200).json({ offers, campaigns });
