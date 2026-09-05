@@ -56,9 +56,12 @@ async function buscarOfertasShopee(porLoja = false) {
   const termo = document.getElementById('busca-shopee').value.trim();
   const loja = document.getElementById('busca-loja').value.trim();
   const sortType = Number(document.getElementById('ordem-shopee').value) || 1;
+  const modo = document.getElementById('modo-shopee').value;
+  const qualidade = document.getElementById('qualidade-shopee').value;
+  const origem = document.getElementById('origem-shopee').value;
   const status = document.getElementById('status-busca-shopee');
   const botao = document.getElementById('buscar-shopee');
-  if ((!porLoja && termo.length < 2) || (porLoja && loja.length < 2)) {
+  if ((!porLoja && termo.length < 2 && modo === 'products') || (porLoja && loja.length < 2)) {
     status.className = 'status-busca erro';
     status.textContent = porLoja ? 'Digite o nome ou cole o link da loja.' : 'Digite o produto ou a categoria que deseja procurar.';
     return;
@@ -74,7 +77,7 @@ async function buscarOfertasShopee(porLoja = false) {
   status.className = 'status-busca';
   status.textContent = 'Procurando ofertas e comparando os resultados…';
   try {
-    const parametros = new URLSearchParams({ sortType: String(sortType) });
+    const parametros = new URLSearchParams({ sortType: String(sortType), mode: porLoja ? 'products' : modo, quality: qualidade, origin: origem });
     if (termo && !porLoja) parametros.set('keyword', termo);
     if (porLoja) parametros.set('store', loja);
     const resposta = await fetch(`/api/shopee-search?${parametros}`);
@@ -106,6 +109,8 @@ async function buscarOfertasShopee(porLoja = false) {
         comissaoExtra: 0,
         avaliacao: item.rating || 0,
         qtdAvaliacoes: item.sales || 0,
+        qualidadeBusca: Number(item.relevanceScore) || 0,
+        correspondenciaBusca: Number(item.keywordMatch) || 0,
         cupom: item.couponCode ? 'sim' : 'nao',
         codigoCupom: item.couponCode || '',
         frete: item.freeShipping ? 'sim' : 'nao',
@@ -127,7 +132,7 @@ async function buscarOfertasShopee(porLoja = false) {
     renderTriagem();
     verificarAlertas(dados.offers);
     status.className = 'status-busca sucesso';
-    const origemBusca = dados.store?.name ? ` da loja ${dados.store.name}` : porLoja ? ' da loja escolhida' : dados.searchMode === 'flash' ? ' em Oferta Relâmpago' : '';
+    const origemBusca = dados.store?.name ? ` da loja ${dados.store.name}` : porLoja ? ' da loja escolhida' : dados.searchMode === 'flash' ? ' em Oferta Relâmpago' : dados.searchMode === 'official' ? ' em Lojas Oficiais' : '';
     const descartadas = Number(dados.filteredCount) || 0;
     status.textContent = `${dados.offers.length} ofertas confiáveis${origemBusca}; ${descartadas} resultado(s) duvidoso(s) foram ocultados.`;
   } catch (erro) {
@@ -159,7 +164,7 @@ let canais = carregarCanais();
 let campanhas = [];
 let alertas = carregarJson(ALERTAS_KEY, []);
 let automacaoTimer = null;
-let idsBuscaAtual = null;
+let idsBuscaAtual = [];
 
 function salvarAlertas() {
   localStorage.setItem(ALERTAS_KEY, JSON.stringify(alertas));
@@ -280,12 +285,16 @@ function analisarPertinencia(oferta) {
   const preco = Number(oferta.preco) || 0;
   const tipoLoja = oferta.tipoLoja?.code || 'regular';
   const pontosLoja = tipoLoja === 'official' ? 20 : tipoLoja === 'preferred_plus' ? 16 : tipoLoja === 'preferred' ? 12 : 0;
-  let nota = Math.max(0, avaliacao - 4) * 30;
-  nota += Math.min(Math.log10(qtdAvaliacoes + 1) * 9, 27);
-  nota += pontosLoja;
-  nota += Math.min(desconto * 0.3, 15);
-  nota += oferta.frete === 'sim' ? 5 : 0;
-  nota += oferta.cupom === 'sim' ? 3 : 0;
+  let nota = Number.isFinite(Number(oferta.qualidadeBusca)) && Number(oferta.qualidadeBusca) > 0
+    ? Number(oferta.qualidadeBusca)
+    : Math.max(0, avaliacao - 4) * 30;
+  if (!oferta.qualidadeBusca) {
+    nota += Math.min(Math.log10(qtdAvaliacoes + 1) * 9, 27);
+    nota += pontosLoja;
+    nota += Math.min(desconto * 0.3, 15);
+    nota += oferta.frete === 'sim' ? 5 : 0;
+    nota += oferta.cupom === 'sim' ? 3 : 0;
+  }
 
   const positivos = [];
   const alertas = [];
@@ -298,6 +307,8 @@ function analisarPertinencia(oferta) {
   if (tipoLoja === 'official') positivos.push('Vendido por Loja Oficial');
   else if (tipoLoja === 'preferred' || tipoLoja === 'preferred_plus') positivos.push('Loja indicada pela Shopee');
   else alertas.push('Loja comum: exige avaliação e vendas mais altas');
+  if (oferta.correspondenciaBusca >= 0.75) positivos.push('Produto corresponde bem ao termo pesquisado');
+  else if (oferta.correspondenciaBusca > 0) alertas.push('Correspondência parcial com a pesquisa');
   if (oferta.frete === 'sim') positivos.push('Frete grátis reduz objeção de compra');
   else alertas.push('Sem frete grátis informado');
   if (oferta.cupom === 'sim') positivos.push('Cupom disponível');
@@ -695,10 +706,33 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('[data-busca-rapida]').forEach((botao) => {
     botao.addEventListener('click', () => {
       const campo = document.getElementById('busca-shopee');
+      document.getElementById('modo-shopee').value = 'products';
       campo.value = botao.dataset.buscaRapida;
       campo.dataset.categoria = botao.dataset.categoria;
       buscarOfertasShopee();
     });
+  });
+  document.querySelectorAll('[data-modo-rapido]').forEach((botao) => {
+    botao.addEventListener('click', () => {
+      document.getElementById('modo-shopee').value = botao.dataset.modoRapido;
+      document.getElementById('busca-shopee').value = '';
+      buscarOfertasShopee();
+    });
+  });
+  document.getElementById('modo-shopee').addEventListener('change', (e) => {
+    const campo = document.getElementById('busca-shopee');
+    campo.placeholder = e.target.value === 'products'
+      ? 'Ex: air fryer, material escolar, fone bluetooth'
+      : 'Opcional: refine por produto ou categoria';
+  });
+  document.getElementById('limpar-resultados').addEventListener('click', () => {
+    idsBuscaAtual = [];
+    campanhas = [];
+    document.getElementById('busca-shopee').value = '';
+    document.getElementById('busca-ofertas').value = '';
+    document.getElementById('status-busca-shopee').textContent = 'Tela limpa. Faça uma nova busca para começar.';
+    renderCampanhas();
+    renderTriagem();
   });
   document.getElementById('modal-copiar').addEventListener('click', async () => {
     const texto = document.getElementById('modal-texto').value;
