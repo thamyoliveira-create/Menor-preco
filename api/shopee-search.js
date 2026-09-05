@@ -15,6 +15,7 @@ const QUERY = `query SearchOffers($keyword: String, $sortType: Int, $page: Int, 
       ratingStar
       commissionRate
       shopName
+      shopType
       productCatIds
     }
   }
@@ -37,6 +38,14 @@ function relevance(item) {
   const commission = normalizePercent(item.commissionRate);
   const score = discount * 0.55 + Math.max(0, rating - 3) * 18 + Math.min(Math.log10(sales + 1) * 7, 18) + Math.min(commission * 0.25, 5);
   return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function shopBadge(shopType) {
+  const types = Array.isArray(shopType) ? shopType.map(Number) : [Number(shopType)];
+  if (types.includes(1)) return { code: 'official', label: 'Loja Oficial' };
+  if (types.includes(4)) return { code: 'preferred_plus', label: 'Loja Indicada+' };
+  if (types.includes(2)) return { code: 'preferred', label: 'Loja Indicada' };
+  return { code: 'regular', label: 'Loja comum' };
 }
 
 module.exports = async function handler(req, res) {
@@ -90,6 +99,7 @@ module.exports = async function handler(req, res) {
         rating: number(item.ratingStar),
         commissionRate: normalizePercent(item.commissionRate),
         shopName: item.shopName,
+        shopBadge: shopBadge(item.shopType),
         relevanceScore: relevance(item),
       };
     }).sort((a, b) => b.relevanceScore - a.relevanceScore);
