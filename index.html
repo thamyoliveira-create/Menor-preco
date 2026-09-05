@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PreçoMenor</title>
-  <link rel="stylesheet" href="style.css?v=20260905-5" />
+  <link rel="stylesheet" href="style.css?v=20260905-6" />
 </head>
 <body>
   <header class="app-header">
@@ -14,6 +14,7 @@
 
   <nav class="tabs">
     <button class="tab-btn active" data-tab="triagem">Ofertas para enviar</button>
+    <button class="tab-btn" data-tab="fila">Fila de publicações</button>
     <button class="tab-btn" data-tab="ofertas">Cadastrar oferta</button>
     <button class="tab-btn" data-tab="alertas">Alertas</button>
     <button class="tab-btn" data-tab="lucro">Lucro</button>
@@ -229,6 +230,18 @@
       <div id="lista-triagem" class="lista-ofertas"></div>
     </section>
 
+    <section id="tab-fila" class="tab-panel">
+      <div class="card fila-cabecalho">
+        <div>
+          <p class="eyebrow">Planejamento</p>
+          <h2>Fila de publicações</h2>
+          <p class="hint">Organize os envios por horário e grupo. O navegador avisa quando uma publicação estiver pronta.</p>
+        </div>
+        <div id="fila-resumo" class="fila-resumo" aria-live="polite"></div>
+      </div>
+      <div id="lista-fila" class="lista-ofertas"></div>
+    </section>
+
     <!-- ABA LUCRO -->
     <section id="tab-lucro" class="tab-panel">
       <div class="card">
@@ -277,8 +290,17 @@
       <label>Canal de publicação
         <select id="modal-canal"></select>
       </label>
+      <div class="agendamento-campos">
+        <label>Data
+          <input id="modal-data" type="date" />
+        </label>
+        <label>Horário
+          <input id="modal-hora" type="time" />
+        </label>
+      </div>
       <textarea id="modal-texto" rows="8"></textarea>
       <div class="modal-actions">
+        <button id="modal-agendar" class="btn-approve">Adicionar à fila</button>
         <button id="modal-copiar" class="btn-secondary">Copiar texto</button>
         <button id="modal-whatsapp" class="btn-primary">Abrir no WhatsApp</button>
         <button id="modal-fechar" class="btn-link">Fechar</button>
@@ -286,6 +308,6 @@
     </div>
   </div>
 
-  <script src="script.js?v=20260905-5"></script>
+  <script src="script.js?v=20260905-6"></script>
 </body>
 </html>
