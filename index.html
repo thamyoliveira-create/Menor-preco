@@ -92,6 +92,21 @@
           <span id="triagem-contador" class="contador"></span>
         </div>
         <p class="hint">Escolha uma oferta, confira a análise e aprove para liberar a mensagem pronta com o cupom.</p>
+        <div class="busca-remota">
+          <label class="campo-busca">O que a IA deve procurar na Shopee?
+            <input type="search" id="busca-shopee" placeholder="Ex: air fryer barata, material escolar, fone bluetooth" />
+          </label>
+          <label>Ordenar resultados
+            <select id="ordem-shopee">
+              <option value="1">Mais relevantes</option>
+              <option value="2">Mais vendidos</option>
+              <option value="5">Maior comissão</option>
+              <option value="4">Menor preço</option>
+            </select>
+          </label>
+          <button type="button" id="buscar-shopee" class="btn-primary">Buscar ofertas agora</button>
+        </div>
+        <p id="status-busca-shopee" class="status-busca" aria-live="polite"></p>
         <div class="filtros-triagem">
           <label class="campo-busca">Buscar produto
             <input type="search" id="busca-ofertas" placeholder="Ex: air fryer, mochila, hidratante" />
