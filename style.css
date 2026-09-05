@@ -141,6 +141,9 @@ input, select, textarea {
 
 .oferta-item h3 { margin: 0; font-size: 1rem; }
 .nome-loja { color: #666; font-size: .8rem; margin: 4px 0 0; }
+.loja-badge { background: #f2f3f5; border-radius: 999px; color: #555; display: inline-block; font-size: .69rem; font-weight: 700; margin-left: 5px; padding: 2px 7px; vertical-align: 1px; }
+.loja-badge.official { background: #fff0eb; color: var(--laranja); }
+.loja-badge.preferred, .loja-badge.preferred_plus { background: #eaf8f0; color: var(--verde); }
 
 .score-badge {
   background: #fff3ee;
