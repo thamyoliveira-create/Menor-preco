@@ -45,7 +45,8 @@ module.exports = async function handler(req, res) {
   const secret = process.env.SHOPEE_APP_SECRET;
   const endpoint = process.env.SHOPEE_API_URL || 'https://open-api.affiliate.shopee.com.br/graphql';
   if (!appId || !secret) {
-    return res.status(503).json({ error: 'A busca ainda precisa das credenciais da Shopee nas configurações protegidas da Vercel.' });
+    const missing = [!appId && 'SHOPEE_APP_ID', !secret && 'SHOPEE_APP_SECRET'].filter(Boolean);
+    return res.status(503).json({ error: `Variável ausente na Vercel: ${missing.join(' e ')}. Salve em Production e faça um novo deployment.` });
   }
 
   const keyword = String(req.query.keyword || '').trim().slice(0, 100);
