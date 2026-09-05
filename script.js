@@ -51,14 +51,16 @@ function normalizarTaxa(valor) {
   return numero > 0 && numero <= 1 ? numero * 100 : numero;
 }
 
-async function buscarOfertasShopee() {
+async function buscarOfertasShopee(porLoja = false) {
+  porLoja = porLoja === true;
   const termo = document.getElementById('busca-shopee').value.trim();
+  const loja = document.getElementById('busca-loja').value.trim();
   const sortType = Number(document.getElementById('ordem-shopee').value) || 1;
   const status = document.getElementById('status-busca-shopee');
   const botao = document.getElementById('buscar-shopee');
-  if (termo.length < 2) {
+  if ((!porLoja && termo.length < 2) || (porLoja && loja.length < 2)) {
     status.className = 'status-busca erro';
-    status.textContent = 'Digite o produto ou a categoria que deseja procurar.';
+    status.textContent = porLoja ? 'Digite o nome ou cole o link da loja.' : 'Digite o produto ou a categoria que deseja procurar.';
     return;
   }
 
@@ -66,7 +68,10 @@ async function buscarOfertasShopee() {
   status.className = 'status-busca';
   status.textContent = 'Procurando ofertas e comparando os resultados…';
   try {
-    const resposta = await fetch(`/api/shopee-search?keyword=${encodeURIComponent(termo)}&sortType=${sortType}`);
+    const parametros = new URLSearchParams({ sortType: String(sortType) });
+    if (termo && !porLoja) parametros.set('keyword', termo);
+    if (porLoja) parametros.set('store', loja);
+    const resposta = await fetch(`/api/shopee-search?${parametros}`);
     const dados = await resposta.json();
     if (!resposta.ok) throw new Error(dados.error || 'Não foi possível consultar a Shopee.');
 
@@ -106,14 +111,15 @@ async function buscarOfertasShopee() {
       registrarHistorico(oferta);
     });
     salvarOfertas(ofertas);
-    document.getElementById('busca-ofertas').value = termo;
+    document.getElementById('busca-ofertas').value = porLoja ? '' : termo;
     document.getElementById('filtro-status').value = 'todos';
     renderOfertas();
     renderLucro();
     renderTriagem();
     verificarAlertas(dados.offers);
     status.className = 'status-busca sucesso';
-    status.textContent = `${dados.offers.length} ofertas analisadas; ${novas} adicionadas à sua seleção.`;
+    const origemBusca = dados.store?.name ? ` da loja ${dados.store.name}` : porLoja ? ' da loja escolhida' : '';
+    status.textContent = `${dados.offers.length} ofertas${origemBusca} analisadas; ${novas} adicionadas à sua seleção.`;
   } catch (erro) {
     status.className = 'status-busca erro';
     status.textContent = erro.message;
@@ -641,6 +647,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById(id).addEventListener(id === 'busca-ofertas' ? 'input' : 'change', renderTriagem);
   });
   document.getElementById('buscar-shopee').addEventListener('click', buscarOfertasShopee);
+  document.getElementById('buscar-loja').addEventListener('click', () => buscarOfertasShopee(true));
   document.getElementById('busca-shopee').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') buscarOfertasShopee();
   });
