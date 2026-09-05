@@ -100,6 +100,17 @@ main { max-width: 900px; margin: 0 auto; padding: 20px 16px 60px; }
 .alerta-form .btn-primary { min-height: 39px; }
 .alerta-item { align-items: center; background: white; border: 1px solid var(--borda); border-radius: 10px; display: flex; justify-content: space-between; gap: 12px; padding: 14px 16px; }
 .alerta-item p { color: #666; font-size: .78rem; margin: 4px 0 0; }
+.fila-cabecalho { align-items: center; display: flex; justify-content: space-between; gap: 18px; }
+.fila-cabecalho h2 { margin-bottom: 4px; }
+.fila-resumo { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.fila-resumo span { background: #f2f3f5; border-radius: 999px; color: #555; font-size: .74rem; font-weight: 700; padding: 5px 9px; }
+.fila-item { align-items: center; background: white; border: 1px solid var(--borda); border-left: 5px solid #a8adb5; border-radius: 10px; display: grid; gap: 14px; grid-template-columns: 145px minmax(200px, 1fr) auto; padding: 14px 16px; }
+.fila-item.pronta { background: #fffaf2; border-left-color: var(--laranja); }
+.fila-item.enviada { opacity: .72; border-left-color: var(--verde); }
+.fila-horario span { color: #777; display: block; font-size: .7rem; font-weight: 700; text-transform: uppercase; }
+.fila-horario strong { display: block; font-size: .84rem; margin-top: 3px; }
+.fila-conteudo h3 { font-size: .92rem; margin: 0; }
+.fila-conteudo p { color: #666; font-size: .78rem; margin: 4px 0 0; }
 
 .grid {
   display: grid;
@@ -279,6 +290,8 @@ input, select, textarea {
   margin-top: 10px;
   font-size: 0.9rem;
 }
+.agendamento-campos { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; margin-top: 10px; }
+.destaque-agendar { box-shadow: 0 0 0 3px rgba(26,157,85,.18); }
 
 .modal-actions {
   display: flex;
@@ -301,6 +314,9 @@ input, select, textarea {
   .ia-selecao { grid-template-columns: 1fr; }
   .oferta-imagem { flex-basis: 84px; height: 84px; width: 84px; }
   .lista-campanhas { grid-template-columns: 1fr; }
+  .fila-cabecalho { align-items: flex-start; flex-direction: column; }
+  .fila-resumo { justify-content: flex-start; }
+  .fila-item { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {
