@@ -392,7 +392,7 @@ function montarTexto(oferta, canal) {
   if (oferta.cupom === 'sim') linhas.push('🎟️ Tem cupom disponível na página do produto');
   if (oferta.codigoCupom) linhas.push(`🏷️ Use o cupom: *${oferta.codigoCupom}*`);
   if (oferta.frete === 'sim') linhas.push('🚚 Frete grátis');
-  linhas.push('', montarLink(oferta, canal), '', '_Link de afiliada — posso ganhar uma comissão sem custo extra pra você._');
+  linhas.push('', montarLink(oferta, canal), '', '#publi');
   return linhas.join('\n');
 }
 
